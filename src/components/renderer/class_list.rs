@@ -13,7 +13,7 @@
 //!     .finish();
 //! ```
 
-use crate::components::{ButtonSize, ButtonStyle, Shade, Variant, BadgeStyle, AlertStyle, AlertSize};
+use crate::components::{ButtonSize, ButtonStyle, Shade, Variant, BadgeStyle};
 use std::collections::HashMap;
 
 /// Fluent builder for CSS class strings.
@@ -142,33 +142,6 @@ impl ClassList {
             BadgeStyle::Warning => "rz-badge-warning",
             BadgeStyle::Danger => "rz-badge-danger",
             BadgeStyle::Info => "rz-badge-info",
-        };
-        self.add_class(class)
-    }
-
-    /// Add alert style (color) class based on [`AlertStyle`].
-    pub fn add_alert_style(self, style: AlertStyle) -> Self {
-        let class = match style {
-            AlertStyle::Primary => "rz-primary",
-            AlertStyle::Secondary => "rz-secondary",
-            AlertStyle::Light => "rz-light",
-            AlertStyle::Base => "rz-base",
-            AlertStyle::Dark => "rz-dark",
-            AlertStyle::Success => "rz-success",
-            AlertStyle::Warning => "rz-warning",
-            AlertStyle::Danger => "rz-danger",
-            AlertStyle::Info => "rz-info",
-        };
-        self.add_class(class)
-    }
-
-    /// Add alert size class based on [`AlertSize`].
-    pub fn add_alert_size(self, size: AlertSize) -> Self {
-        let class = match size {
-            AlertSize::ExtraSmall => "rz-alert-xs",
-            AlertSize::Small => "rz-alert-sm",
-            AlertSize::Medium => "rz-alert-md",
-            AlertSize::Large => "rz-alert-lg",
         };
         self.add_class(class)
     }

@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::components::{ButtonStyle, ButtonSize, Variant, RadzenButton, RadzenBadge, BadgeStyle, RadzenCard, RadzenAlert, AlertStyle, AlertSize};
+use crate::components::{ButtonStyle, ButtonSize, Variant, RadzenButton, RadzenBadge, BadgeStyle, RadzenCard};
 
 /// Default Home Page
 #[component]
@@ -130,39 +130,6 @@ pub fn Home() -> impl IntoView {
                             <p>"This is a flat card variant with minimal styling."</p>
                         </div>
                     </RadzenCard>
-                </div>
-
-                <h2 style="margin-top: 2rem;">"Alerts"</h2>
-                <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem;">
-                    <RadzenAlert
-                        alert_style=AlertStyle::Success
-                        title="Success!".to_string()
-                        text="Your action completed successfully.".to_string()
-                        show_icon=true
-                        allow_close=true
-                        size=AlertSize::Small
-                    />
-                    <RadzenAlert
-                        alert_style=AlertStyle::Warning
-                        title="Warning".to_string()
-                        text="Please review this important information.".to_string()
-                        show_icon=true
-                        allow_close=true
-                    />
-                    <RadzenAlert
-                        alert_style=AlertStyle::Danger
-                        title="Error".to_string()
-                        text="An error occurred while processing your request.".to_string()
-                        show_icon=true
-                        allow_close=true
-                    />
-                    <RadzenAlert
-                        alert_style=AlertStyle::Info
-                        title="Information".to_string()
-                        text="Here is some helpful information for you.".to_string()
-                        show_icon=true
-                        allow_close=true
-                    />
                 </div>
             </div>
         </ErrorBoundary>

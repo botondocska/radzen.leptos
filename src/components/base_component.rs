@@ -162,10 +162,10 @@ pub struct ComponentProps {
     // ── Event callbacks ───────────────────────────────────────────────────────
     // Arc<dyn Fn…> does NOT implement PartialEq; see manual impl below.
     /// Called with the component's `id` string when the pointer enters.
-    pub on_mouse_enter: Option<Arc<dyn Fn(String) + Send + Sync>>,
+    pub on_mouse_enter: Option<Arc<dyn Fn(MouseEvent) + Send + Sync>>,
 
     /// Called with the component's `id` string when the pointer leaves.
-    pub on_mouse_leave: Option<Arc<dyn Fn(String) + Send + Sync>>,
+    pub on_mouse_leave: Option<Arc<dyn Fn(MouseEvent) + Send + Sync>>,
 
     /// Called with the raw [`MouseEvent`] on right-click / context-menu.
     pub on_context_menu: Option<Arc<dyn Fn(MouseEvent) + Send + Sync>>,
@@ -232,10 +232,10 @@ pub struct RadzenBaseHandle {
     /// 4. Hard fallback `"en-US"`
     pub locale: String,
 
-    /// Wire to `on:mouseenter` on the root element.
+    /// Wire to `on:mouseenter`. Fires with the raw [`MouseEvent`].
     pub on_mouse_enter: Arc<dyn Fn(MouseEvent) + Send + Sync>,
 
-    /// Wire to `on:mouseleave` on the root element.
+    /// Wire to `on:mouseleave`. Fires with the raw [`MouseEvent`].
     pub on_mouse_leave: Arc<dyn Fn(MouseEvent) + Send + Sync>,
 
     /// Wire to `on:contextmenu` on the root element.
@@ -311,22 +311,19 @@ pub fn use_radzen_base(base: &ComponentProps, component_class: &'static str) -> 
     };
 
     // ── Event handlers ───────────────────────────────────────────────────────
-    let id_for_enter = id.clone();
     let enter_cb = base.on_mouse_enter.clone();
-    let on_mouse_enter: Arc<dyn Fn(MouseEvent) + Send + Sync> = Arc::new(move |_ev: MouseEvent| {
+    let on_mouse_enter: Arc<dyn Fn(MouseEvent) + Send + Sync> = Arc::new(move |ev: MouseEvent| {
         if let Some(cb) = &enter_cb {
-            cb(id_for_enter.clone());
+            cb(ev);
         }
     });
 
-    let id_for_leave = id.clone();
     let leave_cb = base.on_mouse_leave.clone();
-    let on_mouse_leave: Arc<dyn Fn(MouseEvent) + Send + Sync> = Arc::new(move |_ev: MouseEvent| {
+    let on_mouse_leave: Arc<dyn Fn(MouseEvent) + Send + Sync> = Arc::new(move |ev: MouseEvent| {
         if let Some(cb) = &leave_cb {
-            cb(id_for_leave.clone());
+            cb(ev);
         }
     });
-
     let ctx_cb = base.on_context_menu.clone();
     let on_context_menu: Arc<dyn Fn(MouseEvent) + Send + Sync> = Arc::new(move |ev: MouseEvent| {
         // Suppress the browser's native right-click menu — mirrors the

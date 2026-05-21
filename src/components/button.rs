@@ -1,106 +1,91 @@
 //! RadzenButton component — mirrors C# Radzen.Blazor.RadzenButton.
 //!
-//! A clickable button with support for multiple visual styles, icons, images,
-//! and loading states. Supports variants (Filled, Flat, Outlined, Text), color
-//! styles (Primary, Secondary, Success, etc.), and sizes (ExtraSmall, Small, Medium, Large).
+//! `on_click` is an async handler (boxed `Future<Output = ()>`), mirroring
+//! Blazor's `EventCallback<MouseEventArgs>` which is `async Task`.
+//! The `_clicking` re-entrancy guard remains `true` for the full duration
+//! of the async task before resetting — identical to Blazor's await behaviour.
+//!
+//! Sync callers just return `async {}`:
+//! ```rust,ignore
+//! on_click=Some(Arc::new(|_ev| Box::pin(async { do_sync_thing(); })))
+//! ```
 
 use crate::components::base_component::*;
 use crate::components::renderer::ClassList;
 use crate::components::{ButtonSize, ButtonStyle, ButtonType, Shade, Variant};
 use leptos::prelude::*;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
 
-/// Render a RadzenButton component.
-///
-/// # Example
-/// ```rust,ignore
-/// use radzen_leptos::components::{RadzenButton, ButtonStyle};
-///
-/// view! {
-///     <RadzenButton
-///         text="Click me".to_string()
-///         button_style=ButtonStyle::Primary
-///     />
-/// }
-/// ```
+/// Boxed async click handler — mirrors Blazor's `async Task OnClick(MouseEventArgs)`.
+pub type AsyncClickFuture = Pin<Box<dyn Future<Output = ()>>>;
+pub type AsyncClickHandler = Arc<dyn Fn(web_sys::MouseEvent) -> AsyncClickFuture + Send + Sync>;
+
 #[component]
 pub fn RadzenButton(
     /// Base component properties (id, class, style, etc.)
     #[prop(default = Default::default())]
     base: ComponentProps,
-    /// Button text label. If both text and icon are set, both are displayed.
-    /// Ignored when `children` is provided.
+    /// Button text label.
     #[prop(default = String::new())]
     text: String,
-    /// Material icon name (e.g., "save", "delete", "add").
-    /// Rendered using the `rzi` icon font. Ignored when `children` is provided.
+    /// Material icon name (e.g., "save", "delete").
     #[prop(default = None)]
     icon: Option<String>,
-    /// Custom color for the icon (CSS value, e.g., "#FF0000", "var(--my-color)").
-    /// Overrides the button style and variant.
+    /// Custom CSS color for the icon.
     #[prop(default = None)]
     icon_color: Option<String>,
-    /// URL or path to an image to display in the button.
-    /// For icon fonts, use `icon` instead. Ignored when `children` is provided.
+    /// URL/path to an image to display in the button.
     #[prop(default = None)]
     image: Option<String>,
-    /// Alt text for the image. Used as the `alt` attribute when `image` is set.
-    /// Defaults to `"image"` — mirrors Blazor's `ImageAlternateText` default.
+    /// Alt text for the image.
     #[prop(default = "image".to_string())]
     image_alt_text: String,
-    /// Semantic color style of the button.
+    /// Semantic color style.
     #[prop(default = ButtonStyle::Primary)]
     button_style: ButtonStyle,
-    /// HTML `type` attribute (`button`, `submit`, `reset`).
+    /// HTML `type` attribute.
     #[prop(default = ButtonType::Button)]
     button_type: ButtonType,
-    /// Visual appearance variant (Filled, Flat, Outlined, Text).
+    /// Visual variant.
     #[prop(default = Variant::Filled)]
     variant: Variant,
-    /// Color intensity shade (Default, Light, Dark, Lighter, Darker).
+    /// Color intensity shade.
     #[prop(default = Shade::Default)]
     shade: Shade,
-    /// Button size (ExtraSmall, Small, Medium, Large).
+    /// Button size.
     #[prop(default = ButtonSize::Medium)]
     size: ButtonSize,
-    /// Whether the button is disabled and cannot be clicked.
+    /// Whether the button is disabled.
     #[prop(default = false)]
     disabled: bool,
-    /// Callback invoked when the button is clicked.
-    /// Only fires if the button is not disabled and not busy.
+    /// Async click callback — mirrors Blazor's `EventCallback<MouseEventArgs>`
+    /// (`async Task`). The `_clicking` guard stays true for the full duration
+    /// of the future, preventing re-entrant clicks during async work.
+    ///
+    /// For sync work: `Some(Arc::new(|_ev| Box::pin(async { … })))`
+    /// For async work: `Some(Arc::new(|ev| Box::pin(async move { fetch().await; })))`
     #[prop(default = None)]
-    on_click: Option<std::sync::Arc<dyn Fn(web_sys::MouseEvent) + Send + Sync>>,
+    on_click: Option<AsyncClickHandler>,
     /// Whether the button is in a loading/busy state.
-    /// When true, shows a loading indicator, displays `busy_text`, and becomes disabled.
     #[prop(default = false)]
     is_busy: bool,
-    /// Text displayed when `is_busy` is true.
+    /// Text shown while `is_busy` is true.
     #[prop(default = String::new())]
     busy_text: String,
     /// Tab index for keyboard navigation.
     #[prop(default = 0)]
     tab_index: i32,
-    /// Optional child content. When provided, replaces Text / Icon / Image entirely —
-    /// mirrors Blazor's `ChildContent` RenderFragment on RadzenButton.
-    /// `ChildrenFn` implements `Fn` (unlike `Children` which is `FnOnce`), so it
-    /// can be called directly inside the view! closure with no wrapper needed.
+    /// Optional child content — replaces Text/Icon/Image when provided.
     #[prop(optional)]
     children: Option<ChildrenFn>,
 ) -> impl IntoView {
     let handle = use_radzen_base(&base, "rz-button");
 
-    // ── Compute effective disabled state ─────────────────────────────────────
     let is_disabled = disabled || is_busy;
-
     let has_children = children.is_some();
 
-    // ── CSS class — mirrors Blazor GetComponentCssClass exactly ──────────────
-    // Canonical order from RadzenButton.razor.cs:
-    //   rz-button → AddButtonSize → AddVariant → AddButtonStyle
-    //              → AddDisabled → AddShade → rz-button-icon-only
-    //
-    // Note: AddDisabled comes BEFORE AddShade — this is the exact Blazor order.
-    // Note: rz-button-icon-only checks only Text.IsNullOrEmpty && Icon != null,
-    //       with no ChildContent guard — matches Blazor exactly.
     let css_class = ClassList::new()
         .add_class("rz-button")
         .add_button_size(size)
@@ -112,7 +97,6 @@ pub fn RadzenButton(
             "rz-button-icon-only",
             text.trim().is_empty() && icon.is_some(),
         )
-        // Merge any caller-supplied class from base.attrs
         .add_option(
             base.attrs
                 .as_ref()
@@ -121,10 +105,8 @@ pub fn RadzenButton(
         )
         .finish();
 
-    // ── Button type ──────────────────────────────────────────────────────────
     let button_type_str = button_type.as_str();
 
-    // ── Prepare rendering values as signals ──────────────────────────────────
     let text_sig = RwSignal::new(text);
     let icon_sig = RwSignal::new(icon);
     let icon_color_sig = RwSignal::new(icon_color);
@@ -133,34 +115,36 @@ pub fn RadzenButton(
     let busy_text_sig = RwSignal::new(busy_text);
     let is_busy_sig = RwSignal::new(is_busy);
 
-    // ── Re-entrancy guard — mirrors Blazor's `_clicking` boolean flag ────────
-    // Prevents simultaneous/re-entrant clicks (e.g. rapid double-clicks
-    // before an async handler resolves). In Blazor this is `private bool _clicking`.
+    // ── Re-entrancy guard — mirrors Blazor's `private bool _clicking` ────────
+    // Stays `true` for the entire duration of the async future, so rapid
+    // double-clicks are dropped until the previous handler resolves.
     let clicking = RwSignal::new(false);
 
-    // ── Event handler ────────────────────────────────────────────────────────
-    // Explicitly guard against disabled state at the Rust level,
-    // matching Blazor's `if (IsDisabled) { return; }` check inside OnClick.
-    // The HTML `disabled` attribute prevents browser events, but this guard
-    // ensures correctness even if the attribute is bypassed programmatically.
+    // ── Async click handler ───────────────────────────────────────────────────
+    // `spawn_local` drives the future on the WASM microtask queue.
+    // The guard is set before spawn and cleared inside the spawned task,
+    // so it remains true for the full async duration — identical to Blazor's:
+    //   _clicking = true;
+    //   await OnClick.InvokeAsync(args);
+    //   _clicking = false;
     let on_click_cb = on_click.clone();
     let on_button_click = move |ev: web_sys::MouseEvent| {
-        // Disabled guard — mirrors Blazor: `if (IsDisabled) { return; }`
-        if is_disabled {
-            return;
-        }
-        // Re-entrancy guard — mirrors Blazor: `if (_clicking) { return; }`
-        if clicking.get_untracked() {
+        if is_disabled || clicking.get_untracked() {
             return;
         }
         clicking.set(true);
-        if let Some(cb) = &on_click_cb {
-            cb(ev);
+
+        if let Some(cb) = on_click_cb.clone() {
+            let fut = cb(ev);
+            wasm_bindgen_futures::spawn_local(async move {
+                fut.await;
+                clicking.set(false);
+            });
+        } else {
+            clicking.set(false);
         }
-        clicking.set(false);
     };
 
-    // ── Visibility / display style ───────────────────────────────────────────
     let display_style = if !handle.visible.get_untracked() {
         if let Some(s) = base.style.clone() {
             Some(format!("{}; display: none", s))
@@ -171,7 +155,6 @@ pub fn RadzenButton(
         base.style.clone()
     };
 
-    // ── Clone handle event handlers for use in the view ──────────────────────
     let handle_mouse_enter = handle.on_mouse_enter.clone();
     let handle_mouse_leave = handle.on_mouse_leave.clone();
     let handle_context_menu = handle.on_context_menu.clone();
@@ -184,9 +167,6 @@ pub fn RadzenButton(
             class=css_class
             style=display_style
             disabled=is_disabled
-            // Mirrors Blazor: tabindex="@(Disabled ? -1 : TabIndex)"
-            // Blazor checks the raw `Disabled` prop here, NOT `IsDisabled`.
-            // When only `IsBusy` is true, Blazor still passes the real TabIndex.
             tabindex=if disabled { -1 } else { tab_index }
             on:click=on_button_click
             on:mouseenter=move |ev| handle_mouse_enter(ev)
@@ -194,17 +174,10 @@ pub fn RadzenButton(
             on:contextmenu=move |ev| handle_context_menu(ev)
         >
             <span class="rz-button-box">
-                // ── Mirrors Blazor structure exactly: ────────────────────────
-                // if ChildContent != null  →  render it (bypasses busy state)
-                // else if IsBusy          →  spinner + busy text
-                // else                    →  icon / image / text
                 {children.as_ref().map(|c| c())}
 
                 <Show when=move || !has_children && is_busy_sig.get()>
-                    // Busy spinner — mirrors Blazor's <RadzenIcon> output:
-                    // <i class="notranslate rzi"> (no rz-button-icon-left)
-                    // animation: rotation — space after colon matches Blazor exactly
-                    <i class="notranslate rzi" style="animation: rotation 700ms linear infinite">
+                    <i class="notranslate rzi" style="animation: button-icon-spin 700ms linear infinite">
                         "refresh"
                     </i>
                     {move || {
@@ -216,13 +189,11 @@ pub fn RadzenButton(
                 </Show>
 
                 <Show when=move || !has_children && !is_busy_sig.get()>
-                    // Icon
                     {move || {
                         icon_sig.get().map(|icon_val| {
                             let icon_style = icon_color_sig
                                 .get()
                                 .as_ref()
-                                // Matches Blazor: style="color:{IconColor}" — no space after colon
                                 .map(|c| format!("color:{}", c));
                             view! {
                                 <i
@@ -235,8 +206,6 @@ pub fn RadzenButton(
                         })
                     }}
 
-                    // Image — mirrors Blazor exactly:
-                    // class="notranslate rz-button-icon-left rzi"
                     {move || {
                         image_sig.get().map(|img_src| {
                             let alt_text = image_alt_text_sig.get();
@@ -250,7 +219,6 @@ pub fn RadzenButton(
                         })
                     }}
 
-                    // Text label
                     {move || {
                         let txt = text_sig.get();
                         (!txt.trim().is_empty()).then(|| {

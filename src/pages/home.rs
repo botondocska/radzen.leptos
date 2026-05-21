@@ -1,7 +1,9 @@
 use leptos::prelude::*;
+use std::collections::HashMap;
 
 use crate::components::{
-    BadgeStyle, ButtonSize, ButtonStyle, RadzenBadge, RadzenButton, RadzenCard, Shade, Variant,
+    BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, RadzenBadge, RadzenButton, RadzenCard,
+    Shade, Variant,
 };
 
 /// Default Home Page
@@ -50,7 +52,13 @@ pub fn Home() -> impl IntoView {
                         size=ButtonSize::Medium
                         variant=Variant::Outlined
                         shade=Shade::Darker
-                    />
+                        base=ComponentProps {
+                            attrs: Some(HashMap::from([
+                                ("class".to_string(), "rz-border-radius-10".to_string())
+                            ])),
+                            ..Default::default()
+                        }
+                        />
 
                     {/* Secondary flat button */}
                     <RadzenButton

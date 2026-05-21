@@ -18,7 +18,7 @@ pub use base_component::{
     ComponentProps, RadzenBaseHandle, RadzenComponent, RadzenLocaleContext, provide_locale_context,
     use_radzen_base,
 };
-pub use button::RadzenButton;
+pub use button::{AsyncClickFuture, AsyncClickHandler, RadzenButton};
 pub use button_size::ButtonSize;
 pub use button_style::ButtonStyle;
 pub use button_type::ButtonType;

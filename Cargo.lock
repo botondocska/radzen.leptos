@@ -1477,6 +1477,7 @@ dependencies = [
  "log",
  "sys-locale",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "web-sys",
 ]

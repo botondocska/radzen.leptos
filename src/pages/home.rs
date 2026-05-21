@@ -27,16 +27,17 @@ pub fn Home() -> impl IntoView {
         }>
             <div class="container">
                 <h1>"Welcome to Leptos Radzen Demo"</h1>
-                    {/* Primary button with text */}
+
+                // ── Buttons ───────────────────────────────────────────────────
+                <h2>"Buttons"</h2>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
                     <RadzenButton
-                        text="Primary Button".to_string()
+                        text="Primary".to_string()
                         button_style=ButtonStyle::Primary
                         size=ButtonSize::ExtraSmall
                         variant=Variant::Filled
                         shade=Shade::Dark
                     />
-
-                    {/* Success button */}
                     <RadzenButton
                         text="Save".to_string()
                         button_style=ButtonStyle::Success
@@ -44,8 +45,6 @@ pub fn Home() -> impl IntoView {
                         variant=Variant::Flat
                         shade=Shade::Light
                     />
-
-                    {/* Danger button with outlined variant */}
                     <RadzenButton
                         text="Delete".to_string()
                         button_style=ButtonStyle::Danger
@@ -58,9 +57,7 @@ pub fn Home() -> impl IntoView {
                             ])),
                             ..Default::default()
                         }
-                        />
-
-                    {/* Secondary flat button */}
+                    />
                     <RadzenButton
                         text="Cancel".to_string()
                         button_style=ButtonStyle::Secondary
@@ -68,58 +65,130 @@ pub fn Home() -> impl IntoView {
                         variant=Variant::Text
                         shade=Shade::Lighter
                     />
+                </div>
 
-                <h2 style="margin-top: 2rem;">"Badges"</h2>
-                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                // ── Badges — Styles ───────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Badges — Styles"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "All nine badge styles with Filled variant and Default shade."
+                </p>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenBadge text=Some("Primary".to_string())   badge_style=BadgeStyle::Primary />
+                    <RadzenBadge text=Some("Secondary".to_string()) badge_style=BadgeStyle::Secondary />
+                    <RadzenBadge text=Some("Success".to_string())   badge_style=BadgeStyle::Success />
+                    <RadzenBadge text=Some("Danger".to_string())    badge_style=BadgeStyle::Danger />
+                    <RadzenBadge text=Some("Warning".to_string())   badge_style=BadgeStyle::Warning />
+                    <RadzenBadge text=Some("Info".to_string())      badge_style=BadgeStyle::Info />
+                    <RadzenBadge text=Some("Light".to_string())     badge_style=BadgeStyle::Light />
+                    <RadzenBadge text=Some("Dark".to_string())      badge_style=BadgeStyle::Dark />
+                    <RadzenBadge text=Some("Base".to_string())      badge_style=BadgeStyle::Base />
+                </div>
+
+                // ── Badges — Variants ─────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Badges — Variants"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Same Danger style across all four variants."
+                </p>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenBadge text=Some("Filled".to_string())   badge_style=BadgeStyle::Danger variant=Variant::Filled />
+                    <RadzenBadge text=Some("Flat".to_string())     badge_style=BadgeStyle::Danger variant=Variant::Flat />
+                    <RadzenBadge text=Some("Outlined".to_string()) badge_style=BadgeStyle::Danger variant=Variant::Outlined />
+                    <RadzenBadge text=Some("Text".to_string())     badge_style=BadgeStyle::Danger variant=Variant::Text />
+                </div>
+
+                // ── Badges — Shades ───────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Badges — Shades"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Same Info style across all five shades."
+                </p>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenBadge text=Some("Lighter".to_string()) badge_style=BadgeStyle::Info shade=Shade::Lighter />
+                    <RadzenBadge text=Some("Light".to_string())   badge_style=BadgeStyle::Info shade=Shade::Light />
+                    <RadzenBadge text=Some("Default".to_string()) badge_style=BadgeStyle::Info shade=Shade::Default />
+                    <RadzenBadge text=Some("Dark".to_string())    badge_style=BadgeStyle::Info shade=Shade::Dark />
+                    <RadzenBadge text=Some("Darker".to_string())  badge_style=BadgeStyle::Info shade=Shade::Darker />
+                </div>
+
+                // ── Badges — Pills ────────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Badges — Pill Shape"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Rectangular vs pill, and pill with counts."
+                </p>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenBadge text=Some("Rectangular".to_string()) badge_style=BadgeStyle::Primary />
+                    <RadzenBadge text=Some("Pill".to_string())        badge_style=BadgeStyle::Primary is_pill=true />
+                    <RadzenBadge text=Some("3".to_string())           badge_style=BadgeStyle::Danger  is_pill=true />
+                    <RadzenBadge text=Some("12".to_string())          badge_style=BadgeStyle::Warning is_pill=true />
+                    <RadzenBadge text=Some("99+".to_string())         badge_style=BadgeStyle::Success is_pill=true />
                     <RadzenBadge
-                        text="Primary".to_string()
-                        badge_style=BadgeStyle::Primary
-                        variant=Variant::Filled
-                    />
-                    <RadzenBadge
-                        text="Success".to_string()
-                        badge_style=BadgeStyle::Success
-                        variant=Variant::Filled
-                    />
-                    <RadzenBadge
-                        text="Danger".to_string()
-                        badge_style=BadgeStyle::Danger
-                        variant=Variant::Text
-                    />
-                    <RadzenBadge
-                        text="Warning".to_string()
-                        badge_style=BadgeStyle::Warning
+                        text=Some("Outlined pill".to_string())
+                        badge_style=BadgeStyle::Secondary
                         variant=Variant::Outlined
+                        is_pill=true
                     />
                     <RadzenBadge
-                        text="Pill Badge".to_string()
+                        text=Some("Flat pill".to_string())
                         badge_style=BadgeStyle::Info
                         variant=Variant::Flat
+                        is_pill=true
+                        shade=Shade::Dark
                     />
                 </div>
 
+                // ── Badges — ChildContent ─────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Badges — Custom Content"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Using the children slot instead of the text prop."
+                </p>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenBadge badge_style=BadgeStyle::Success is_pill=true>
+                        <span style="display: flex; align-items: center; gap: 0.25rem;">
+                            <i class="notranslate rzi" style="font-size: 0.85rem;">"check"</i>
+                            " Active"
+                        </span>
+                    </RadzenBadge>
+                    <RadzenBadge badge_style=BadgeStyle::Danger variant=Variant::Outlined is_pill=true>
+                        <span style="display: flex; align-items: center; gap: 0.25rem;">
+                            <i class="notranslate rzi" style="font-size: 0.85rem;">"error"</i>
+                            " Failed"
+                        </span>
+                    </RadzenBadge>
+                    <RadzenBadge badge_style=BadgeStyle::Warning variant=Variant::Flat>
+                        <strong>"⚠ Pending review"</strong>
+                    </RadzenBadge>
+                </div>
+
+                // ── Badges — Invisible ────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Badges — Visibility"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "The second badge below has Visible=false — it renders nothing."
+                </p>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenBadge text=Some("Visible".to_string()) badge_style=BadgeStyle::Success />
+                    <RadzenBadge
+                        text=Some("Hidden (not rendered)".to_string())
+                        badge_style=BadgeStyle::Danger
+                        base=ComponentProps { visible: Some(false), ..Default::default() }
+                    />
+                    <RadzenBadge text=Some("Also visible".to_string()) badge_style=BadgeStyle::Info />
+                </div>
+
+                // ── Cards ─────────────────────────────────────────────────────
                 <h2 style="margin-top: 2rem;">"Cards"</h2>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-                    <RadzenCard
-                        variant=Variant::Filled
-
-                    >
+                    <RadzenCard variant=Variant::Filled>
                         <div style="padding: 1rem;">
                             <h3>"Card Title"</h3>
                             <p>"This is a filled card with sample content."</p>
                         </div>
                     </RadzenCard>
-                    <RadzenCard
-                        variant=Variant::Outlined
-                    >
+                    <RadzenCard variant=Variant::Outlined>
                         <div style="padding: 1rem;">
                             <h3>"Outlined Card"</h3>
                             <p>"This is an outlined card variant."</p>
                         </div>
                     </RadzenCard>
-                    <RadzenCard
-                        variant=Variant::Flat
-                    >
+                    <RadzenCard variant=Variant::Flat>
                         <div style="padding: 1rem;">
                             <h3>"Flat Card"</h3>
                             <p>"This is a flat card variant with minimal styling."</p>

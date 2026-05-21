@@ -28,10 +28,11 @@ pub fn RadzenButton(
     #[prop(default = Default::default())]
     base: ComponentProps,
     /// Button text label. If both text and icon are set, both are displayed.
+    /// Ignored when `children` is provided.
     #[prop(default = String::new())]
     text: String,
     /// Material icon name (e.g., "save", "delete", "add").
-    /// Rendered using the `rzi` icon font.
+    /// Rendered using the `rzi` icon font. Ignored when `children` is provided.
     #[prop(default = None)]
     icon: Option<String>,
     /// Custom color for the icon (CSS value, e.g., "#FF0000", "var(--my-color)").
@@ -39,7 +40,7 @@ pub fn RadzenButton(
     #[prop(default = None)]
     icon_color: Option<String>,
     /// URL or path to an image to display in the button.
-    /// For icon fonts, use `icon` instead.
+    /// For icon fonts, use `icon` instead. Ignored when `children` is provided.
     #[prop(default = None)]
     image: Option<String>,
     /// Alt text for the image (defaults to "button").
@@ -77,40 +78,47 @@ pub fn RadzenButton(
     /// Tab index for keyboard navigation.
     #[prop(default = 0)]
     tab_index: i32,
+    /// Optional child content. When provided, replaces Text / Icon / Image entirely —
+    /// mirrors Blazor's `ChildContent` RenderFragment on RadzenButton.
+    /// `ChildrenFn` implements `Fn` (unlike `Children` which is `FnOnce`), so it
+    /// can be called directly inside the view! closure with no wrapper needed.
+    #[prop(optional)]
+    children: Option<ChildrenFn>,
 ) -> impl IntoView {
     let handle = use_radzen_base(&base, "rz-button");
 
     // ── Compute effective disabled state ─────────────────────────────────────
     let is_disabled = disabled || is_busy;
 
-    // ── Precompute base CSS class ────────────────────────────────────────────
-    let base_css = ClassList::new()
+    let has_children = children.is_some();
+
+    // ── CSS class — mirrors Blazor GetComponentCssClass exactly ──────────────
+    // Order: rz-button → size → variant → style → disabled → shade → icon-only
+    let css_class = ClassList::new()
         .add_class("rz-button")
         .add_button_size(size)
         .add_variant(variant)
         .add_button_style(button_style)
-        .add_shade(shade)
         .add_disabled(is_disabled)
+        .add_shade(shade)
+        // rz-button-icon-only: text empty, icon present, and no ChildContent
         .add(
             "rz-button-icon-only",
-            text.trim().is_empty() && icon.is_some(),
+            text.trim().is_empty() && icon.is_some() && !has_children,
+        )
+        // Merge any caller-supplied class from base.attrs
+        .add_option(
+            base.attrs
+                .as_ref()
+                .and_then(|a| a.get("class"))
+                .map(String::as_str),
         )
         .finish();
 
-    let css_class = if let Some(attrs) = &base.attrs {
-        if let Some(user_class) = attrs.get("class") {
-            format!("{} {}", base_css, user_class)
-        } else {
-            base_css
-        }
-    } else {
-        base_css
-    };
-
-    // ── Button type ─────────────────────────────────────────────────────────
+    // ── Button type ──────────────────────────────────────────────────────────
     let button_type_str = button_type.as_str();
 
-    // ── Prepare rendering values as signals ─────────────────────────────────
+    // ── Prepare rendering values as signals ──────────────────────────────────
     let text_sig = RwSignal::new(text);
     let icon_sig = RwSignal::new(icon);
     let icon_color_sig = RwSignal::new(icon_color);
@@ -127,7 +135,7 @@ pub fn RadzenButton(
         }
     };
 
-    // ── Render the button ────────────────────────────────────────────────────
+    // ── Visibility / display style ───────────────────────────────────────────
     let display_style = if !handle.visible.get_untracked() {
         if let Some(s) = base.style.clone() {
             Some(format!("{}; display: none", s))
@@ -158,24 +166,36 @@ pub fn RadzenButton(
             on:contextmenu=move |ev| handle_context_menu(ev)
         >
             <span class="rz-button-box">
-                <Show when=move || is_busy_sig.get()>
-                    <i class="notranslate rz-button-icon-left rzi" style="animation: rotation 700ms linear infinite">
+                // ── Mirrors Blazor structure exactly: ────────────────────────
+                // if ChildContent != null  →  render it (bypasses busy state)
+                // else if IsBusy          →  spinner + busy text
+                // else                    →  icon / image / text
+                {children.as_ref().map(|c| c())}
+
+                <Show when=move || !has_children && is_busy_sig.get()>
+                    // Busy spinner — mirrors Blazor's <RadzenIcon> output:
+                    // <i class="notranslate rzi"> (no rz-button-icon-left)
+                    // animation: rotation — space after colon matches Blazor exactly
+                    <i class="notranslate rzi" style="animation: rotation 700ms linear infinite">
                         "refresh"
                     </i>
                     {move || {
                         let busy = busy_text_sig.get();
                         (!busy.is_empty()).then(|| {
-                            view! {
-                                <span class="rz-button-text">{busy}</span>
-                            }
+                            view! { <span class="rz-button-text">{busy}</span> }
                         })
                     }}
                 </Show>
-                <Show when=move || !is_busy_sig.get()>
+
+                <Show when=move || !has_children && !is_busy_sig.get()>
+                    // Icon
                     {move || {
                         icon_sig.get().map(|icon_val| {
-                            let icon_color_val = icon_color_sig.get();
-                            let icon_style = icon_color_val.as_ref().map(|c| format!("color:{}", c));
+                            let icon_style = icon_color_sig
+                                .get()
+                                .as_ref()
+                                // Matches Blazor: style="color:{IconColor}" — no space after colon
+                                .map(|c| format!("color:{}", c));
                             view! {
                                 <i
                                     class="notranslate rz-button-icon-left rzi"
@@ -186,24 +206,26 @@ pub fn RadzenButton(
                             }
                         })
                     }}
+
+                    // Image — mirrors Blazor: class="rz-button-icon-left rzi", no `notranslate`
                     {move || {
                         image_sig.get().map(|img_src| {
                             let alt_text = image_alt_text_sig.get();
                             view! {
                                 <img
-                                    class="notranslate rz-button-icon-left rzi"
+                                    class="rz-button-icon-left rzi"
                                     src=img_src
                                     alt=alt_text
                                 />
                             }
                         })
                     }}
+
+                    // Text label
                     {move || {
                         let txt = text_sig.get();
                         (!txt.trim().is_empty()).then(|| {
-                            view! {
-                                <span class="rz-button-text">{txt}</span>
-                            }
+                            view! { <span class="rz-button-text">{txt}</span> }
                         })
                     }}
                 </Show>

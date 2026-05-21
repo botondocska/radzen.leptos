@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::components::{ButtonStyle, ButtonSize, Variant, RadzenButton, RadzenBadge, BadgeStyle, RadzenCard};
+use crate::components::{ButtonStyle, ButtonSize, Variant, Shade, RadzenButton, RadzenBadge, BadgeStyle, RadzenCard};
 
 /// Default Home Page
 #[component]
@@ -22,47 +22,32 @@ pub fn Home() -> impl IntoView {
             }
         }>
             <div class="container">
-
-                <picture>
-                    <source
-                        srcset="https://raw.githubusercontent.com/leptos-rs/leptos/main/docs/logos/Leptos_logo_pref_dark_RGB.svg"
-                        media="(prefers-color-scheme: dark)"
-                    />
-                    <img
-                        src="https://raw.githubusercontent.com/leptos-rs/leptos/main/docs/logos/Leptos_logo_RGB.svg"
-                        alt="Leptos Logo"
-                        height="200"
-                        width="400"
-                    />
-                </picture>
-
-                <h1>"Welcome to Leptos"</h1>
-
-                <p>"Leptos is a full-stack Rust framework for building web applications with ease and performance."</p>
-
-                <div style="margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                <h1>"Welcome to Leptos Radzen Demo"</h1>
                     {/* Primary button with text */}
                     <RadzenButton
                         text="Primary Button".to_string()
                         button_style=ButtonStyle::Primary
-                        size=ButtonSize::Medium
+                        size=ButtonSize::ExtraSmall
                         variant=Variant::Filled
+                        shade=Shade::Dark
                     />
 
                     {/* Success button */}
                     <RadzenButton
                         text="Save".to_string()
                         button_style=ButtonStyle::Success
-                        size=ButtonSize::Medium
-                        variant=Variant::Filled
+                        size=ButtonSize::Small
+                        variant=Variant::Flat
+                        shade=Shade::Light
                     />
 
                     {/* Danger button with outlined variant */}
                     <RadzenButton
                         text="Delete".to_string()
                         button_style=ButtonStyle::Danger
-                        size=ButtonSize::Small
+                        size=ButtonSize::Medium
                         variant=Variant::Outlined
+                        shade=Shade::Darker
                     />
 
                     {/* Secondary flat button */}
@@ -70,9 +55,9 @@ pub fn Home() -> impl IntoView {
                         text="Cancel".to_string()
                         button_style=ButtonStyle::Secondary
                         size=ButtonSize::Large
-                        variant=Variant::Flat
+                        variant=Variant::Text
+                        shade=Shade::Lighter
                     />
-                </div>
 
                 <h2 style="margin-top: 2rem;">"Badges"</h2>
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap;">

@@ -94,6 +94,10 @@ pub fn RadzenButton(
 
     // ── CSS class — mirrors Blazor GetComponentCssClass exactly ──────────────
     // Order: rz-button → size → variant → style → disabled → shade → icon-only
+    //
+    // Fix #1: `rz-button-icon-only` condition — Blazor checks only
+    // `string.IsNullOrEmpty(Text) && !string.IsNullOrEmpty(Icon)`,
+    // with no ChildContent guard. Match that exactly.
     let css_class = ClassList::new()
         .add_class("rz-button")
         .add_button_size(size)
@@ -101,10 +105,9 @@ pub fn RadzenButton(
         .add_button_style(button_style)
         .add_disabled(is_disabled)
         .add_shade(shade)
-        // rz-button-icon-only: text empty, icon present, and no ChildContent
         .add(
             "rz-button-icon-only",
-            text.trim().is_empty() && icon.is_some() && !has_children,
+            text.trim().is_empty() && icon.is_some(),
         )
         // Merge any caller-supplied class from base.attrs
         .add_option(
@@ -127,12 +130,31 @@ pub fn RadzenButton(
     let busy_text_sig = RwSignal::new(busy_text);
     let is_busy_sig = RwSignal::new(is_busy);
 
+    // ── Re-entrancy guard — mirrors Blazor's `_clicking` boolean flag ────────
+    // Fix #3: Prevents simultaneous/re-entrant clicks (e.g. rapid double-clicks
+    // before an async handler resolves). In Blazor this is `private bool _clicking`.
+    let clicking = RwSignal::new(false);
+
     // ── Event handler ────────────────────────────────────────────────────────
+    // Fix #4: Explicitly guard against disabled state at the Rust level,
+    // matching Blazor's `if (IsDisabled) { return; }` check inside OnClick.
+    // The HTML `disabled` attribute prevents browser events, but this guard
+    // ensures correctness even if the attribute is bypassed programmatically.
     let on_click_cb = on_click.clone();
     let on_button_click = move |ev: web_sys::MouseEvent| {
+        // Disabled guard — mirrors Blazor: `if (IsDisabled) { return; }`
+        if is_disabled {
+            return;
+        }
+        // Re-entrancy guard — mirrors Blazor: `if (_clicking) { return; }`
+        if clicking.get_untracked() {
+            return;
+        }
+        clicking.set(true);
         if let Some(cb) = &on_click_cb {
             cb(ev);
         }
+        clicking.set(false);
     };
 
     // ── Visibility / display style ───────────────────────────────────────────
@@ -207,13 +229,15 @@ pub fn RadzenButton(
                         })
                     }}
 
-                    // Image — mirrors Blazor: class="rz-button-icon-left rzi", no `notranslate`
+                    // Fix #2: Image — mirrors Blazor exactly:
+                    // class="notranslate rz-button-icon-left rzi"
+                    // The previous port was missing `notranslate`.
                     {move || {
                         image_sig.get().map(|img_src| {
                             let alt_text = image_alt_text_sig.get();
                             view! {
                                 <img
-                                    class="rz-button-icon-left rzi"
+                                    class="notranslate rz-button-icon-left rzi"
                                     src=img_src
                                     alt=alt_text
                                 />

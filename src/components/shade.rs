@@ -30,10 +30,10 @@ impl Shade {
     pub fn suffix(&self) -> &'static str {
         match self {
             Shade::Lighter => "lighter",
-            Shade::Light   => "light",
+            Shade::Light => "light",
             Shade::Default => "DEFAULT",
-            Shade::Dark    => "dark",
-            Shade::Darker  => "darker",
+            Shade::Dark => "dark",
+            Shade::Darker => "darker",
         }
     }
 }

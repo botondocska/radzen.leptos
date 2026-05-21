@@ -1,11 +1,11 @@
-use leptos::prelude::*;
 use crate::components::{
-    base_component::{ComponentProps, use_radzen_base},
-    badge_style::BadgeStyle,
-    variant::Variant,
-    shade::Shade,
     ClassList,
+    badge_style::BadgeStyle,
+    base_component::{ComponentProps, use_radzen_base},
+    shade::Shade,
+    variant::Variant,
 };
+use leptos::prelude::*;
 
 /// RadzenBadge component
 /// A small label component for displaying counts, statuses, or short text labels

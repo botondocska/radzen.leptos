@@ -136,7 +136,6 @@ pub fn new_unique_id() -> String {
 #[derive(Clone, Default)]
 pub struct ComponentProps {
     // ── Visual ───────────────────────────────────────────────────────────────
-
     /// Inline CSS `style` string, e.g. `"color: red; margin-top: 1rem"`.
     pub style: Option<String>,
 
@@ -162,7 +161,6 @@ pub struct ComponentProps {
 
     // ── Event callbacks ───────────────────────────────────────────────────────
     // Arc<dyn Fn…> does NOT implement PartialEq; see manual impl below.
-
     /// Called with the component's `id` string when the pointer enters.
     pub on_mouse_enter: Option<Arc<dyn Fn(String) + Send + Sync>>,
 
@@ -182,11 +180,11 @@ pub struct ComponentProps {
 /// Leptos needs to decide whether to re-render.
 impl PartialEq for ComponentProps {
     fn eq(&self, other: &Self) -> bool {
-        self.style   == other.style
+        self.style == other.style
             && self.visible == other.visible
-            && self.id      == other.id
-            && self.attrs   == other.attrs
-            && self.locale  == other.locale
+            && self.id == other.id
+            && self.attrs == other.attrs
+            && self.locale == other.locale
         // on_mouse_enter / on_mouse_leave / on_context_menu intentionally omitted
     }
 }
@@ -315,34 +313,31 @@ pub fn use_radzen_base(base: &ComponentProps, component_class: &'static str) -> 
     // ── Event handlers ───────────────────────────────────────────────────────
     let id_for_enter = id.clone();
     let enter_cb = base.on_mouse_enter.clone();
-    let on_mouse_enter: Arc<dyn Fn(MouseEvent) + Send + Sync> =
-        Arc::new(move |_ev: MouseEvent| {
-            if let Some(cb) = &enter_cb {
-                cb(id_for_enter.clone());
-            }
-        });
+    let on_mouse_enter: Arc<dyn Fn(MouseEvent) + Send + Sync> = Arc::new(move |_ev: MouseEvent| {
+        if let Some(cb) = &enter_cb {
+            cb(id_for_enter.clone());
+        }
+    });
 
     let id_for_leave = id.clone();
     let leave_cb = base.on_mouse_leave.clone();
-    let on_mouse_leave: Arc<dyn Fn(MouseEvent) + Send + Sync> =
-        Arc::new(move |_ev: MouseEvent| {
-            if let Some(cb) = &leave_cb {
-                cb(id_for_leave.clone());
-            }
-        });
+    let on_mouse_leave: Arc<dyn Fn(MouseEvent) + Send + Sync> = Arc::new(move |_ev: MouseEvent| {
+        if let Some(cb) = &leave_cb {
+            cb(id_for_leave.clone());
+        }
+    });
 
     let ctx_cb = base.on_context_menu.clone();
-    let on_context_menu: Arc<dyn Fn(MouseEvent) + Send + Sync> =
-        Arc::new(move |ev: MouseEvent| {
-            // Suppress the browser's native right-click menu — mirrors the
-            // behaviour of Radzen.addContextMenu which calls preventDefault()
-            // before invoking the .NET callback.  In Leptos we own the handler
-            // directly so we call it here instead of going through JS.
-            ev.prevent_default();
-            if let Some(cb) = &ctx_cb {
-                cb(ev);
-            }
-        });
+    let on_context_menu: Arc<dyn Fn(MouseEvent) + Send + Sync> = Arc::new(move |ev: MouseEvent| {
+        // Suppress the browser's native right-click menu — mirrors the
+        // behaviour of Radzen.addContextMenu which calls preventDefault()
+        // before invoking the .NET callback.  In Leptos we own the handler
+        // directly so we call it here instead of going through JS.
+        ev.prevent_default();
+        if let Some(cb) = &ctx_cb {
+            cb(ev);
+        }
+    });
 
     // ── Full disposal (mirrors IDisposable.Dispose) ───────────────────────────
     // on_cleanup fires when the component is fully unmounted from the DOM.
@@ -383,7 +378,11 @@ pub fn parse_style(style: &str) -> HashMap<String, String> {
             let mut it = pair.splitn(2, ':');
             let key = it.next()?.trim().to_string();
             let val = it.next()?.trim().to_string();
-            if key.is_empty() { None } else { Some((key, val)) }
+            if key.is_empty() {
+                None
+            } else {
+                Some((key, val))
+            }
         })
         .collect()
 }
@@ -473,10 +472,17 @@ mod tests {
     fn css_class_merge() {
         let mut attrs = HashMap::new();
         attrs.insert("class".to_string(), "mt-4".to_string());
-        let base = ComponentProps { attrs: Some(attrs), ..Default::default() };
+        let base = ComponentProps {
+            attrs: Some(attrs),
+            ..Default::default()
+        };
 
-        let caller = base.attrs.as_ref()
-            .and_then(|a| a.get("class")).cloned().unwrap_or_default();
+        let caller = base
+            .attrs
+            .as_ref()
+            .and_then(|a| a.get("class"))
+            .cloned()
+            .unwrap_or_default();
         let result = format!("rz-button {caller}");
         assert_eq!(result, "rz-button mt-4");
     }
@@ -494,7 +500,9 @@ mod tests {
         use std::sync::atomic::{AtomicBool, Ordering};
         static RAN: AtomicBool = AtomicBool::new(false);
         let d = Debouncer::new();
-        d.debounce(100, || { RAN.store(true, Ordering::SeqCst); });
+        d.debounce(100, || {
+            RAN.store(true, Ordering::SeqCst);
+        });
         assert!(RAN.load(Ordering::SeqCst));
     }
 
@@ -516,8 +524,10 @@ mod tests {
         // resolve_system_locale must always return a non-empty string.
         let tag = super::resolve_system_locale();
         assert!(!tag.is_empty(), "locale tag must never be empty");
-        assert!(tag.contains('-') || tag.len() >= 2,
-            "expected a BCP-47 tag like 'en-US', got '{tag}'");
+        assert!(
+            tag.contains('-') || tag.len() >= 2,
+            "expected a BCP-47 tag like 'en-US', got '{tag}'"
+        );
     }
 
     #[test]

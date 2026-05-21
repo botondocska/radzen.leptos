@@ -1,6 +1,8 @@
 use leptos::prelude::*;
 
-use crate::components::{ButtonStyle, ButtonSize, Variant, Shade, RadzenButton, RadzenBadge, BadgeStyle, RadzenCard};
+use crate::components::{
+    BadgeStyle, ButtonSize, ButtonStyle, RadzenBadge, RadzenButton, RadzenCard, Shade, Variant,
+};
 
 /// Default Home Page
 #[component]

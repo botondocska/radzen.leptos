@@ -1,28 +1,22 @@
+/// Specifies the size of a [`RadzenButton`].
+///
 /// Controls the padding, font size, and overall dimensions of a button.
+/// Maps to the `rz-button-{xs|sm|md|lg}` CSS class applied by
+/// [`ClassList::add_button_size`].
+///
+/// Mirrors `Radzen.ButtonSize` in `Radzen.Blazor/Common.cs`.
 #[derive(Clone, PartialEq, Default, Debug)]
 pub enum ButtonSize {
-    /// Default size — `px-4 py-2 text-sm`. Default.
+    /// The smallest button size.
+    ExtraSmall,
+
+    /// Smaller than the default.
+    Small,
+
+    /// The default size.
     #[default]
     Medium,
 
-    /// Larger than default — `px-6 py-3 text-base`.
+    /// Larger than the default.
     Large,
-
-    /// Smaller than default — `px-3 py-1.5 text-sm`.
-    Small,
-
-    /// Smallest available — `px-2 py-1 text-xs`.
-    ExtraSmall,
-}
-
-impl ButtonSize {
-    /// Returns the Tailwind utility classes for padding and font size.
-    pub fn classes(&self) -> &'static str {
-        match self {
-            ButtonSize::Medium     => "px-4 py-2 text-sm",
-            ButtonSize::Large      => "px-6 py-3 text-base",
-            ButtonSize::Small      => "px-3 py-1.5 text-sm",
-            ButtonSize::ExtraSmall => "px-2 py-1 text-xs",
-        }
-    }
 }

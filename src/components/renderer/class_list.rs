@@ -13,7 +13,7 @@
 //!     .finish();
 //! ```
 
-use crate::components::{ButtonSize, ButtonStyle, Shade, Variant, BadgeStyle};
+use crate::components::{BadgeStyle, ButtonSize, ButtonStyle, Shade, Variant};
 use std::collections::HashMap;
 
 /// Fluent builder for CSS class strings.
@@ -200,18 +200,22 @@ mod tests {
 
     #[test]
     fn test_add_variant() {
-        let css = ClassList::new()
-            .add_variant(Variant::Outlined)
-            .finish();
+        let css = ClassList::new().add_variant(Variant::Outlined).finish();
         assert_eq!(css, "rz-variant-outlined");
     }
 
     #[test]
     fn test_add_button_size() {
-        let css = ClassList::new()
-            .add_button_size(ButtonSize::Large)
-            .finish();
+        let css = ClassList::new().add_button_size(ButtonSize::Large).finish();
         assert_eq!(css, "rz-button-lg");
+    }
+
+    #[test]
+    fn test_add_button_size_extra_small() {
+        let css = ClassList::new()
+            .add_button_size(ButtonSize::ExtraSmall)
+            .finish();
+        assert_eq!(css, "rz-button-xs");
     }
 
     #[test]
@@ -224,33 +228,49 @@ mod tests {
 
     #[test]
     fn test_add_shade() {
-        let css = ClassList::new()
-            .add_shade(Shade::Dark)
-            .finish();
+        let css = ClassList::new().add_shade(Shade::Dark).finish();
         assert_eq!(css, "rz-shade-dark");
+    }
+
+    /// Verifies the canonical Blazor class order for RadzenButton:
+    ///   rz-button → size → variant → style → disabled → shade
+    /// Source: RadzenButton.razor.cs GetComponentCssClass()
+    #[test]
+    fn test_button_class_order_matches_blazor() {
+        let css = ClassList::new()
+            .add_class("rz-button")
+            .add_button_size(ButtonSize::Medium)
+            .add_variant(Variant::Filled)
+            .add_button_style(ButtonStyle::Primary)
+            .add_disabled(true)
+            .add_shade(Shade::Default)
+            .finish();
+        assert_eq!(
+            css,
+            "rz-button rz-button-md rz-variant-filled rz-primary rz-state-disabled rz-shade-default"
+        );
     }
 
     #[test]
     fn test_combined_build() {
+        // Non-disabled case — disabled class must be absent, shade must follow style
         let css = ClassList::new()
             .add_class("btn")
             .add_button_size(ButtonSize::Medium)
             .add_button_style(ButtonStyle::Primary)
             .add_variant(Variant::Filled)
             .add_disabled(false)
+            .add_shade(Shade::Default)
             .finish();
         assert_eq!(
             css,
-            "btn rz-button-md rz-primary rz-variant-filled"
+            "btn rz-button-md rz-primary rz-variant-filled rz-shade-default"
         );
     }
 
     #[test]
     fn test_empty_class() {
-        let css = ClassList::new()
-            .add("", true)
-            .add_class("btn")
-            .finish();
+        let css = ClassList::new().add("", true).add_class("btn").finish();
         assert_eq!(css, "btn");
     }
 

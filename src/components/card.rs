@@ -1,9 +1,9 @@
-use leptos::prelude::*;
 use crate::components::{
+    ClassList,
     base_component::{ComponentProps, use_radzen_base},
     variant::Variant,
-    ClassList,
 };
+use leptos::prelude::*;
 
 /// RadzenCard component
 /// A versatile container for grouping related content with consistent styling

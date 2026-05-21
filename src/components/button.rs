@@ -43,8 +43,9 @@ pub fn RadzenButton(
     /// For icon fonts, use `icon` instead. Ignored when `children` is provided.
     #[prop(default = None)]
     image: Option<String>,
-    /// Alt text for the image (defaults to "button").
-    #[prop(default = "button".to_string())]
+    /// Alt text for the image. Used as the `alt` attribute when `image` is set.
+    /// Defaults to `"image"` — mirrors Blazor's `ImageAlternateText` default.
+    #[prop(default = "image".to_string())]
     image_alt_text: String,
     /// Semantic color style of the button.
     #[prop(default = ButtonStyle::Primary)]
@@ -93,11 +94,13 @@ pub fn RadzenButton(
     let has_children = children.is_some();
 
     // ── CSS class — mirrors Blazor GetComponentCssClass exactly ──────────────
-    // Order: rz-button → size → variant → style → disabled → shade → icon-only
+    // Canonical order from RadzenButton.razor.cs:
+    //   rz-button → AddButtonSize → AddVariant → AddButtonStyle
+    //              → AddDisabled → AddShade → rz-button-icon-only
     //
-    // Fix #1: `rz-button-icon-only` condition — Blazor checks only
-    // `string.IsNullOrEmpty(Text) && !string.IsNullOrEmpty(Icon)`,
-    // with no ChildContent guard. Match that exactly.
+    // Note: AddDisabled comes BEFORE AddShade — this is the exact Blazor order.
+    // Note: rz-button-icon-only checks only Text.IsNullOrEmpty && Icon != null,
+    //       with no ChildContent guard — matches Blazor exactly.
     let css_class = ClassList::new()
         .add_class("rz-button")
         .add_button_size(size)
@@ -131,12 +134,12 @@ pub fn RadzenButton(
     let is_busy_sig = RwSignal::new(is_busy);
 
     // ── Re-entrancy guard — mirrors Blazor's `_clicking` boolean flag ────────
-    // Fix #3: Prevents simultaneous/re-entrant clicks (e.g. rapid double-clicks
+    // Prevents simultaneous/re-entrant clicks (e.g. rapid double-clicks
     // before an async handler resolves). In Blazor this is `private bool _clicking`.
     let clicking = RwSignal::new(false);
 
     // ── Event handler ────────────────────────────────────────────────────────
-    // Fix #4: Explicitly guard against disabled state at the Rust level,
+    // Explicitly guard against disabled state at the Rust level,
     // matching Blazor's `if (IsDisabled) { return; }` check inside OnClick.
     // The HTML `disabled` attribute prevents browser events, but this guard
     // ensures correctness even if the attribute is bypassed programmatically.
@@ -232,9 +235,8 @@ pub fn RadzenButton(
                         })
                     }}
 
-                    // Fix #2: Image — mirrors Blazor exactly:
+                    // Image — mirrors Blazor exactly:
                     // class="notranslate rz-button-icon-left rzi"
-                    // The previous port was missing `notranslate`.
                     {move || {
                         image_sig.get().map(|img_src| {
                             let alt_text = image_alt_text_sig.get();

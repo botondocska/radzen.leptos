@@ -37,15 +37,15 @@ pub enum ButtonStyle {
 impl ButtonStyle {
     pub fn token(&self) -> &'static str {
         match self {
-            ButtonStyle::Primary   => "primary",
+            ButtonStyle::Primary => "primary",
             ButtonStyle::Secondary => "secondary",
-            ButtonStyle::Light     => "light",
-            ButtonStyle::Base      => "base",
-            ButtonStyle::Dark      => "dark",
-            ButtonStyle::Success   => "success",
-            ButtonStyle::Danger    => "danger",
-            ButtonStyle::Warning   => "warning",
-            ButtonStyle::Info      => "info",
+            ButtonStyle::Light => "light",
+            ButtonStyle::Base => "base",
+            ButtonStyle::Dark => "dark",
+            ButtonStyle::Success => "success",
+            ButtonStyle::Danger => "danger",
+            ButtonStyle::Warning => "warning",
+            ButtonStyle::Info => "info",
         }
     }
 }

@@ -18,7 +18,7 @@ impl ButtonType {
         match self {
             ButtonType::Button => "button",
             ButtonType::Submit => "submit",
-            ButtonType::Reset  => "reset",
+            ButtonType::Reset => "reset",
         }
     }
 }

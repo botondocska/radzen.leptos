@@ -2,8 +2,8 @@ use leptos::prelude::*;
 use std::collections::HashMap;
 
 use crate::components::{
-    BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, RadzenBadge, RadzenButton, RadzenCard,
-    Shade, Variant,
+    BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, IconStyle, RadzenBadge, RadzenButton,
+    RadzenCard, RadzenIcon, Shade, Variant,
 };
 
 /// Default Home Page
@@ -195,6 +195,95 @@ pub fn Home() -> impl IntoView {
                         </div>
                     </RadzenCard>
                 </div>
+
+                // ── Icons — Basic ─────────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Icons — Basic"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Default Outlined style, inheriting text color."
+                </p>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenIcon icon=Some("home".to_string()) />
+                    <RadzenIcon icon=Some("settings".to_string()) />
+                    <RadzenIcon icon=Some("account_circle".to_string()) />
+                    <RadzenIcon icon=Some("check_circle".to_string()) />
+                    <RadzenIcon icon=Some("notifications".to_string()) />
+                    <RadzenIcon icon=Some("favorite".to_string()) />
+                    <RadzenIcon icon=Some("delete".to_string()) />
+                    <RadzenIcon icon=Some("search".to_string()) />
+                </div>
+
+                // ── Icons — Colors ────────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Icons — Colors"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Using icon_color to set explicit CSS color values."
+                </p>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenIcon icon=Some("home".to_string())         icon_color=Some("var(--rz-primary)".to_string()) />
+                    <RadzenIcon icon=Some("check_circle".to_string()) icon_color=Some("var(--rz-success)".to_string()) />
+                    <RadzenIcon icon=Some("warning".to_string())      icon_color=Some("var(--rz-warning)".to_string()) />
+                    <RadzenIcon icon=Some("error".to_string())        icon_color=Some("var(--rz-danger)".to_string()) />
+                    <RadzenIcon icon=Some("info".to_string())         icon_color=Some("var(--rz-info)".to_string()) />
+                    <RadzenIcon icon=Some("favorite".to_string())     icon_color=Some("#FF0000".to_string()) />
+                </div>
+
+                // ── Icons — Style Variants ────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Icons — Style Variants"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Same icon across all four IconStyle variants (plus None = default Outlined)."
+                </p>
+                <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
+                        <RadzenIcon icon=Some("favorite".to_string()) />
+                        <span style="font-size: 0.75rem; color: var(--rz-base-600);">"None"</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
+                        <RadzenIcon icon=Some("favorite".to_string()) icon_style=Some(IconStyle::Outlined) />
+                        <span style="font-size: 0.75rem; color: var(--rz-base-600);">"Outlined"</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
+                        <RadzenIcon icon=Some("favorite".to_string()) icon_style=Some(IconStyle::Filled) />
+                        <span style="font-size: 0.75rem; color: var(--rz-base-600);">"Filled"</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
+                        <RadzenIcon icon=Some("favorite".to_string()) icon_style=Some(IconStyle::Rounded) />
+                        <span style="font-size: 0.75rem; color: var(--rz-base-600);">"Rounded"</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
+                        <RadzenIcon icon=Some("favorite".to_string()) icon_style=Some(IconStyle::Sharp) />
+                        <span style="font-size: 0.75rem; color: var(--rz-base-600);">"Sharp"</span>
+                    </div>
+                </div>
+
+                // ── Icons — Sizes ─────────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Icons — Sizes"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Scaled via the style prop (font-size)."
+                </p>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenIcon icon=Some("star".to_string())
+                        base=ComponentProps { style: Some("font-size: 1rem;".to_string()),   ..Default::default() } />
+                    <RadzenIcon icon=Some("star".to_string())
+                        base=ComponentProps { style: Some("font-size: 1.5rem;".to_string()), ..Default::default() } />
+                    <RadzenIcon icon=Some("star".to_string())
+                        base=ComponentProps { style: Some("font-size: 2rem;".to_string()),   ..Default::default() } />
+                    <RadzenIcon icon=Some("star".to_string())
+                        base=ComponentProps { style: Some("font-size: 3rem;".to_string()),   ..Default::default() } />
+                    <RadzenIcon icon=Some("star".to_string())
+                        base=ComponentProps { style: Some("font-size: 4rem;".to_string()),   ..Default::default() } />
+                </div>
+
+                // ── Icons — Visibility ────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Icons — Visibility"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "The middle icon has Visible=false — renders nothing."
+                </p>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                    <RadzenIcon icon=Some("check".to_string()) icon_color=Some("var(--rz-success)".to_string()) />
+                    <RadzenIcon icon=Some("block".to_string())
+                        base=ComponentProps { visible: Some(false), ..Default::default() } />
+                    <RadzenIcon icon=Some("check".to_string()) icon_color=Some("var(--rz-success)".to_string()) />
+                </div>
+
             </div>
         </ErrorBoundary>
     }

@@ -13,7 +13,7 @@
 //!     .finish();
 //! ```
 
-use crate::components::{BadgeStyle, ButtonSize, ButtonStyle, Shade, Variant};
+use crate::components::{BadgeStyle, ButtonSize, ButtonStyle, Shade, Variant, IconStyle};
 use std::collections::HashMap;
 
 /// Fluent builder for CSS class strings.
@@ -146,6 +146,15 @@ impl ClassList {
         self.add_class(class)
     }
 
+    /// Add icon style class based on [`IconStyle`].
+    ///
+    /// Emits `rzi-{style}` e.g. `rzi-filled`, `rzi-rounded`.
+    /// Pass the unwrapped value; call only when `Option<IconStyle>` is `Some`.
+    pub fn add_icon_style(self, style: IconStyle) -> Self {
+        let class = format!("rzi-{}", style.as_str());
+        self.add_class(class)
+    }
+ 
     /// Finish building and return the class string.
     ///
     /// Classes are joined with spaces. Empty strings are filtered out.

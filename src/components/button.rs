@@ -181,7 +181,10 @@ pub fn RadzenButton(
             class=css_class
             style=display_style
             disabled=is_disabled
-            tabindex=if is_disabled { -1 } else { tab_index }
+            // Mirrors Blazor: tabindex="@(Disabled ? -1 : TabIndex)"
+            // Blazor checks the raw `Disabled` prop here, NOT `IsDisabled`.
+            // When only `IsBusy` is true, Blazor still passes the real TabIndex.
+            tabindex=if disabled { -1 } else { tab_index }
             on:click=on_button_click
             on:mouseenter=move |ev| handle_mouse_enter(ev)
             on:mouseleave=move |ev| handle_mouse_leave(ev)

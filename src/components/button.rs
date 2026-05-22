@@ -28,7 +28,7 @@ pub fn RadzenButton(
     #[prop(default = Default::default())]
     base: ComponentProps,
     /// Button text label.
-    #[prop(default = String::new())]
+    #[prop(default = String::new(), into)]
     text: String,
     /// Material icon name (e.g., "save", "delete").
     #[prop(default = None)]
@@ -40,7 +40,7 @@ pub fn RadzenButton(
     #[prop(default = None)]
     image: Option<String>,
     /// Alt text for the image.
-    #[prop(default = "image".to_string())]
+    #[prop(default = "image".to_string(), into)]
     image_alt_text: String,
     /// Semantic color style.
     #[prop(default = ButtonStyle::Primary)]

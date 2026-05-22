@@ -13,7 +13,7 @@
 //!     .finish();
 //! ```
 
-use crate::components::{BadgeStyle, ButtonSize, ButtonStyle, Shade, Variant, IconStyle};
+use crate::components::{BadgeStyle, ButtonSize, ButtonStyle, IconStyle, Shade, TextAlign, TextStyle, Variant};
 use std::collections::HashMap;
 
 /// Fluent builder for CSS class strings.
@@ -154,7 +154,26 @@ impl ClassList {
         let class = format!("rzi-{}", style.as_str());
         self.add_class(class)
     }
- 
+
+    /// Add text style CSS class based on [`TextStyle`].
+    ///
+    /// Emits the `rz-text-*` class, e.g. `rz-text-h3`, `rz-text-body1`.
+    /// Mirrors Blazor's `className` switch in `RadzenText.BuildRenderTree`.
+    pub fn add_text_style(self, style: TextStyle) -> Self {
+        self.add_class(style.css_class())
+    }
+
+    /// Add text alignment CSS class based on [`TextAlign`].
+    ///
+    /// `TextAlign::Left` emits **no** class — mirrors Blazor's conditional
+    /// `.Add(alignClassName, TextAlign != TextAlign.Left)`.
+    pub fn add_text_align(self, align: TextAlign) -> Self {
+        match align.css_class() {
+            Some(class) => self.add_class(class),
+            None => self,
+        }
+    }
+
     /// Finish building and return the class string.
     ///
     /// Classes are joined with spaces. Empty strings are filtered out.
@@ -292,5 +311,55 @@ mod tests {
             .add_from_attrs(&attrs)
             .finish();
         assert_eq!(css, "btn custom-class");
+    }
+
+    // ── RadzenText class-building tests ──────────────────────────────────────
+
+    /// Mirrors Blazor: ClassList.Create("rz-text-h3").Add(alignClassName, false)
+    /// when TextAlign is Left — no align class emitted.
+    #[test]
+    fn text_left_align_emits_no_class() {
+        let css = ClassList::new()
+            .add_text_style(TextStyle::H3)
+            .add_text_align(TextAlign::Left)
+            .finish();
+        assert_eq!(css, "rz-text-h3");
+    }
+
+    /// Mirrors Blazor: ClassList.Create("rz-text-body1").Add("rz-text-align-center", true)
+    #[test]
+    fn text_center_align_emits_class() {
+        let css = ClassList::new()
+            .add_text_style(TextStyle::Body1)
+            .add_text_align(TextAlign::Center)
+            .finish();
+        assert_eq!(css, "rz-text-body1 rz-text-align-center");
+    }
+
+    #[test]
+    fn text_style_subtitle1_class() {
+        let css = ClassList::new().add_text_style(TextStyle::Subtitle1).finish();
+        assert_eq!(css, "rz-text-subtitle1");
+    }
+
+    #[test]
+    fn text_style_display_h1_class() {
+        let css = ClassList::new().add_text_style(TextStyle::DisplayH1).finish();
+        assert_eq!(css, "rz-text-display-h1");
+    }
+
+    #[test]
+    fn text_style_overline_class() {
+        let css = ClassList::new().add_text_style(TextStyle::Overline).finish();
+        assert_eq!(css, "rz-text-overline");
+    }
+
+    #[test]
+    fn text_align_justify_all_class() {
+        let css = ClassList::new()
+            .add_text_style(TextStyle::Caption)
+            .add_text_align(TextAlign::JustifyAll)
+            .finish();
+        assert_eq!(css, "rz-text-caption rz-text-align-justify-all");
     }
 }

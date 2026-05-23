@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::components::{
     BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, IconStyle, RadzenBadge, RadzenButton,
-    RadzenCard, RadzenIcon, Shade, Variant,
+    RadzenCard, RadzenIcon, RadzenText, Shade, TagName, TextAlign, TextStyle, Variant,
 };
 
 /// Default Home Page
@@ -26,7 +26,6 @@ pub fn Home() -> impl IntoView {
             }
         }>
             <div class="container">
-                <h1>"Welcome to Leptos Radzen Demo"</h1>
 
                 // ── Buttons ───────────────────────────────────────────────────
                 <h2>"Buttons"</h2>
@@ -158,7 +157,7 @@ pub fn Home() -> impl IntoView {
                     </RadzenBadge>
                 </div>
 
-                // ── Badges — Invisible ────────────────────────────────────────
+                // ── Badges — Visibility ───────────────────────────────────────
                 <h2 style="margin-top: 2rem;">"Badges — Visibility"</h2>
                 <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
                     "The second badge below has Visible=false — it renders nothing."
@@ -283,6 +282,268 @@ pub fn Home() -> impl IntoView {
                         base=ComponentProps { visible: Some(false), ..Default::default() } />
                     <RadzenIcon icon=Some("check".to_string()) icon_color=Some("var(--rz-success)".to_string()) />
                 </div>
+
+                // ══════════════════════════════════════════════════════════════
+                // RadzenText examples
+                // Mirrors the sections from TextPage.razor + the TextStyles,
+                // TextTagName, TextDisplayHeadings, TextAlignment sub-examples.
+                // ══════════════════════════════════════════════════════════════
+
+                // Page heading — mirrors TextPage.razor lines 3-8
+                <RadzenText
+                    text_style=TextStyle::H2
+                    tag_name=TagName::H1
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-pt-8".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Text"
+                </RadzenText>
+                <RadzenText
+                    text_style=TextStyle::Subtitle1
+                    tag_name=TagName::P
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-pb-4".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Format and style text in your application with predefined text styles."
+                </RadzenText>
+
+                // ── Text — Text Style ─────────────────────────────────────────
+                // Mirrors TextPage.razor lines 10-17 + TextStyles sub-example.
+                <RadzenText
+                    anchor="text-style".to_string()
+                    text_style=TextStyle::H5
+                    tag_name=TagName::H2
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-pt-8".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Text Style"
+                </RadzenText>
+                <RadzenText
+                    text_style=TextStyle::Body1
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-mb-8".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Use the TextStyle property to apply a predefined text style."
+                </RadzenText>
+
+                // TextStyles sub-example: one row per style group
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <RadzenText text_style=TextStyle::H1      text=Some("H1 – Heading 1".to_string()) />
+                    <RadzenText text_style=TextStyle::H2      text=Some("H2 – Heading 2".to_string()) />
+                    <RadzenText text_style=TextStyle::H3      text=Some("H3 – Heading 3".to_string()) />
+                    <RadzenText text_style=TextStyle::H4      text=Some("H4 – Heading 4".to_string()) />
+                    <RadzenText text_style=TextStyle::H5      text=Some("H5 – Heading 5".to_string()) />
+                    <RadzenText text_style=TextStyle::H6      text=Some("H6 – Heading 6".to_string()) />
+                    <RadzenText text_style=TextStyle::Subtitle1 text=Some("Subtitle1".to_string()) />
+                    <RadzenText text_style=TextStyle::Subtitle2 text=Some("Subtitle2".to_string()) />
+                    <RadzenText text_style=TextStyle::Body1   text=Some("Body1 – default paragraph style.".to_string()) />
+                    <RadzenText text_style=TextStyle::Body2   text=Some("Body2 – smaller paragraph style.".to_string()) />
+                    <RadzenText text_style=TextStyle::Caption text=Some("Caption – small descriptive text.".to_string()) />
+                    <RadzenText text_style=TextStyle::Overline text=Some("OVERLINE – label above content.".to_string()) />
+                    <RadzenText text_style=TextStyle::Button  text=Some("Button – button label style.".to_string()) />
+                </div>
+
+                // ── Text — Tag Name ───────────────────────────────────────────
+                // Mirrors TextPage.razor lines 19-27 + TextTagName sub-example.
+                <RadzenText
+                    anchor="text-tag-name".to_string()
+                    text_style=TextStyle::H5
+                    tag_name=TagName::H2
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-pt-12".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Text Style and Tag Name"
+                </RadzenText>
+                <RadzenText
+                    text_style=TextStyle::Body1
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-mb-8".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Use TextStyle together with TagName to apply different styling while keeping the code semantically correct."
+                </RadzenText>
+
+                // TextTagName sub-example — style and tag intentionally differ
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    // H5 visual style rendered as semantic <h2>
+                    <RadzenText
+                        text_style=TextStyle::H5
+                        tag_name=TagName::H2
+                        text=Some("H5 style on an <h2> element".to_string())
+                    />
+                    // Subtitle1 style rendered as <p>
+                    <RadzenText
+                        text_style=TextStyle::Subtitle1
+                        tag_name=TagName::P
+                        text=Some("Subtitle1 style on a <p> element".to_string())
+                    />
+                    // Body1 style rendered as <div>
+                    <RadzenText
+                        text_style=TextStyle::Body1
+                        tag_name=TagName::Div
+                        text=Some("Body1 style on a <div> element".to_string())
+                    />
+                    // Caption style rendered as <span>
+                    <RadzenText
+                        text_style=TextStyle::Caption
+                        tag_name=TagName::Span
+                        text=Some("Caption style on a <span> element".to_string())
+                    />
+                </div>
+
+                // ── Text — Display Headings ───────────────────────────────────
+                // Mirrors TextPage.razor lines 29-37 + TextDisplayHeadings sub-example.
+                <RadzenText
+                    anchor="text-display-headings".to_string()
+                    text_style=TextStyle::H5
+                    tag_name=TagName::H2
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-pt-12".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Display Headings"
+                </RadzenText>
+                <RadzenText
+                    text_style=TextStyle::Body1
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-mb-8".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Use display headings to emphasise a text or page title. Display headings are usually larger than traditional headings."
+                </RadzenText>
+
+                // TextDisplayHeadings sub-example
+                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                    <RadzenText text_style=TextStyle::DisplayH1 text=Some("Display H1".to_string()) />
+                    <RadzenText text_style=TextStyle::DisplayH2 text=Some("Display H2".to_string()) />
+                    <RadzenText text_style=TextStyle::DisplayH3 text=Some("Display H3".to_string()) />
+                    <RadzenText text_style=TextStyle::DisplayH4 text=Some("Display H4".to_string()) />
+                    <RadzenText text_style=TextStyle::DisplayH5 text=Some("Display H5".to_string()) />
+                    <RadzenText text_style=TextStyle::DisplayH6 text=Some("Display H6".to_string()) />
+                </div>
+
+                // ── Text — Text Align ─────────────────────────────────────────
+                // Mirrors TextPage.razor lines 39-47 + TextAlignment sub-example.
+                <RadzenText
+                    anchor="text-align".to_string()
+                    text_style=TextStyle::H5
+                    tag_name=TagName::H2
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-pt-12".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Text Align"
+                </RadzenText>
+                <RadzenText
+                    text_style=TextStyle::Body1
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-mb-8".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Use TextAlign to align your text."
+                </RadzenText>
+
+                // TextAlignment sub-example — one block per alignment value
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; border: 1px solid var(--rz-base-300); border-radius: 4px; padding: 1rem;">
+                    <RadzenText
+                        text_style=TextStyle::Body1
+                        text_align=TextAlign::Left
+                        text=Some("TextAlign.Left — Radzen Leptos Components are open source and free for commercial use.".to_string())
+                    />
+                    <RadzenText
+                        text_style=TextStyle::Body1
+                        text_align=TextAlign::Center
+                        text=Some("TextAlign.Center — Radzen Leptos Components are open source and free for commercial use.".to_string())
+                    />
+                    <RadzenText
+                        text_style=TextStyle::Body1
+                        text_align=TextAlign::Right
+                        text=Some("TextAlign.Right — Radzen Leptos Components are open source and free for commercial use.".to_string())
+                    />
+                    <RadzenText
+                        text_style=TextStyle::Body1
+                        text_align=TextAlign::Justify
+                        text=Some("TextAlign.Justify — Radzen Leptos Components are open source and free for commercial use. You can install them from crates.io or build your own copy from source.".to_string())
+                    />
+                    <RadzenText
+                        text_style=TextStyle::Body1
+                        text_align=TextAlign::Start
+                        text=Some("TextAlign.Start — logical inline-start (same as Left in LTR documents).".to_string())
+                    />
+                    <RadzenText
+                        text_style=TextStyle::Body1
+                        text_align=TextAlign::End
+                        text=Some("TextAlign.End — logical inline-end (same as Right in LTR documents).".to_string())
+                    />
+                </div>
+
+                // ── Text — Children (rich content) ────────────────────────────
+                <RadzenText
+                    anchor="text-children".to_string()
+                    text_style=TextStyle::H5
+                    tag_name=TagName::H2
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-pt-12".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Children (Rich Content)"
+                </RadzenText>
+                <RadzenText text_style=TextStyle::Body1>
+                    "When "
+                    <code>"text"</code>
+                    " is not set, child content is rendered instead. This allows mixing styled markup inside a typed text container."
+                </RadzenText>
+
+                // ── Text — Visibility ─────────────────────────────────────────
+                <RadzenText
+                    anchor="text-visibility".to_string()
+                    text_style=TextStyle::H5
+                    tag_name=TagName::H2
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-pt-12".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "Visibility"
+                </RadzenText>
+                <RadzenText
+                    text_style=TextStyle::Body1
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([("class".to_string(), "rz-mb-4".to_string())])),
+                        ..Default::default()
+                    }
+                >
+                    "The second paragraph below has Visible=false — it renders nothing (no DOM node)."
+                </RadzenText>
+                <RadzenText
+                    text_style=TextStyle::Body1
+                    text=Some("I am visible.".to_string())
+                />
+                <RadzenText
+                    text_style=TextStyle::Body1
+                    text=Some("I am hidden — you should not see this.".to_string())
+                    base=ComponentProps { visible: Some(false), ..Default::default() }
+                />
+                <RadzenText
+                    text_style=TextStyle::Body1
+                    text=Some("I am also visible.".to_string())
+                />
 
             </div>
         </ErrorBoundary>

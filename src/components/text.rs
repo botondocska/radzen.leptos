@@ -1,58 +1,67 @@
 //! RadzenText component — mirrors C# Radzen.Blazor.RadzenText.
 //!
-//! The C# implementation uses `BuildRenderTree` with a runtime-resolved tag
-//! name string (e.g. `"h1"`, `"p"`, `"span"`) derived from `TextStyle` and
-//! overridden by `TagName`.  In Leptos 0.8 we replicate this with
-//! `leptos::html::custom(Custom { tag_name: Cow::Owned(tag) })` which
-//! produces an `HtmlElement<Custom, …>` — the correct way to emit an element
-//! whose tag name is only known at runtime.
+//! ## Blazor source reference: `Radzen.Blazor/RadzenText.cs`
 //!
-//! CSS class construction — mirrors Blazor's `BuildRenderTree`:
-//!   ```csharp
-//!   ClassList.Create(className)          // e.g. "rz-text-h3"
-//!       .Add(Attributes)                 // caller attrs["class"]
-//!       .Add(alignClassName, TextAlign != TextAlign.Left)
-//!       .ToString()
-//!   ```
-//!   The style class is the *root* of the ClassList here — RadzenText does NOT
-//!   use a fixed "rz-text" prefix like button/badge do.  We replicate this
-//!   exactly.
+//! ### CSS class construction
+//! Mirrors `BuildRenderTree` exactly:
+//! ```csharp
+//! var @class = ClassList.Create(className)   // style class is the root
+//!     .Add(Attributes)                        // caller attrs["class"] merged
+//!     .Add(alignClassName, TextAlign != TextAlign.Left)
+//!     .ToString();
+//! ```
+//! `TextAlign.Left` resolves to `"rz-text-align-left"` internally but is
+//! **never appended** (condition false) — `css_class()` returns `None` for
+//! `Left` to reproduce this.
 //!
-//! Content priority — mirrors Blazor's `if (!string.IsNullOrEmpty(Text))`:
-//!   `text` prop takes precedence over `children` when both are provided.
+//! ### Attribute emit order
+//! Mirrors C# builder attribute order:
+//!   `style` → spread `Attributes` (handled via `base.style` / `base.attrs`)
+//!   → `class` → `id`
 //!
-//! Anchor — mirrors the nested `RadzenTextAnchor` component:
-//!   When `anchor` is set, an `<a id="{anchor}" href="#{anchor}"
-//!   class="rz-link">` with a link icon is appended inside the element.
+//! ### `Anchor` prop semantics
+//! In C# `Anchor` is the full path string e.g. `"typography#text-align"`.
+//! `GetAnchor()` splits on `#` and takes the last fragment.
+//! In our CSR-only port we simply accept a bare anchor id — the `href` is
+//! always `#anchor` (no NavigationManager), and location-change scrolling is
+//! omitted (no IJSRuntime injection in CSR Leptos).
 //!
-//! Visibility — uses `<Show>` (full DOM removal), same pattern as badge/icon.
+//! ### `RadzenTextAnchor`
+//! Mirrors `BuildRenderTree` of the inner `RadzenTextAnchor` class:
+//!   `<a id="{anchor}" href="{path}#{anchor}" class="rz-link">`
+//!     `<RadzenIcon Icon="link" />`
+//!   `</a>`
+//! In CSR the href is `#{anchor}` (no NavigationManager.Uri).
+//!
+//! ### Visibility
+//! Mirrors `if (Visible)` — element is fully omitted, not `display:none`.
+//! Uses early-return `None::<AnyView>.into_any()` to avoid the
+//! `Fn` vs `FnOnce` conflict that arises with `<Show>` + builder API.
 
 use crate::components::{
-    TagName, TextAlign, TextStyle,
+    RadzenIcon, TagName, TextAlign, TextStyle,
     base_component::{ComponentProps, use_radzen_base},
 };
-use leptos::html::Custom;
 use leptos::prelude::*;
-use std::borrow::Cow;
 
 /// RadzenText component.
 ///
-/// Renders text with consistent Material-Design-inspired typography.
-/// The HTML tag is resolved automatically from [`TextStyle`] (e.g. `H3` →
-/// `<h3>`) unless overridden by [`TagName`].  Alignment, anchors, and all
-/// standard base props are supported.
+/// Renders text with consistent Material Design typography.  The HTML tag is
+/// resolved automatically from [`TextStyle`] unless overridden by [`TagName`].
 ///
 /// # Content priority
-/// `text` takes precedence over `children` when both are supplied, mirroring
-/// Blazor's `if (!string.IsNullOrEmpty(Text))` guard.
+/// `text` takes precedence over `children` — mirrors Blazor's
+/// `if (!string.IsNullOrEmpty(Text))`.
 ///
-/// # CSS classes
-/// Mirrors Blazor exactly:
-/// ```text
-/// {style_class} [{caller_class}] [{align_class}]
-/// ```
-/// The alignment class is **omitted** when `text_align` is `TextAlign::Left`
-/// (the default) — identical to Blazor's conditional.
+/// # CSS class order
+/// `{style_class} [{caller_class}] [{align_class}]`
+/// The alignment class is omitted when `text_align` is `TextAlign::Left`.
+///
+/// # Anchor
+/// `anchor` accepts a bare id string (e.g. `"my-heading"`).  A
+/// `<a id="my-heading" href="#my-heading" class="rz-link"><RadzenIcon … /></a>`
+/// is appended inside the element.  In C# `Anchor` accepts a full path string
+/// (`"page#my-heading"`); in our CSR-only port the bare id is sufficient.
 #[component]
 pub fn RadzenText(
     /// Base component properties (id, style, visible, attrs, locale, mouse events).
@@ -64,59 +73,64 @@ pub fn RadzenText(
     #[prop(default = TextStyle::Body1)]
     text_style: TextStyle,
 
-    /// Horizontal text alignment.
+    /// Horizontal text alignment. Default: [`TextAlign::Left`] (no class emitted).
     ///
-    /// `Left` (default) emits no alignment class — mirrors Blazor's
-    /// `.Add(alignClassName, TextAlign != TextAlign.Left)`.
+    /// Mirrors Blazor: `.Add(alignClassName, TextAlign != TextAlign.Left)`.
     #[prop(default = TextAlign::Left)]
     text_align: TextAlign,
 
-    /// Explicit HTML tag override.  Default: [`TagName::Auto`] defers to
-    /// `text_style`'s [`TextStyle::auto_tag`].
+    /// Explicit HTML tag override. Default: [`TagName::Auto`] defers to
+    /// [`TextStyle::auto_tag`].
     #[prop(default = TagName::Auto)]
     tag_name: TagName,
 
-    /// Plain-text content.
+    /// Plain-text content. Takes precedence over `children` when both are set.
     ///
-    /// Takes precedence over `children` when both are provided — mirrors
-    /// Blazor's `if (!string.IsNullOrEmpty(Text)) AddContent(Text)`.
+    /// Mirrors C#: `if (!string.IsNullOrEmpty(Text)) AddContent(Text)`.
     #[prop(default = None, into)]
     text: Option<String>,
 
     /// Anchor identifier for linkable headings.
     ///
-    /// When set, an `<a id="{anchor}" href="#{anchor}" class="rz-link">`
-    /// containing a link icon is appended inside the element — mirrors the
-    /// nested `RadzenTextAnchor` in Blazor.
+    /// When set, appends:
+    /// `<a id="{anchor}" href="#{anchor}" class="rz-link"><RadzenIcon icon="link"/></a>`
+    ///
+    /// Mirrors C# `RadzenTextAnchor` inner component.
     #[prop(default = None, into)]
     anchor: Option<String>,
 
     /// Optional child content — used when `text` is `None`.
     ///
-    /// Mirrors Blazor's `RenderFragment? ChildContent`.
+    /// Mirrors C#: `RenderFragment? ChildContent`.
     #[prop(optional)]
     children: Option<ChildrenFn>,
 ) -> impl IntoView {
-    // ── use_radzen_base ───────────────────────────────────────────────────────
-    // RadzenText does NOT use a fixed "rz-text" component class like button
-    // does — the style class IS the root (e.g. "rz-text-h3").  We pass ""
-    // so we still get id, visible, locale, and event-handler wiring for free.
+    // ── use_radzen_base ────────────────────────────────────────────────────────
+    // RadzenText uses the style class as the root (e.g. "rz-text-h3"), not a
+    // fixed "rz-text" prefix.  Pass "" so we get id/visible/locale/events for
+    // free without an extra class being prepended.
     let handle = use_radzen_base(&base, "");
 
-    // ── Resolve HTML tag name ─────────────────────────────────────────────────
-    // Mirrors Blazor's two-stage switch:
-    //   1. TextStyle sets tagName and className
-    //   2. TagName (if not Auto) overrides tagName
+    // Visibility — mirrors `if (Visible)` in BuildRenderTree.
+    // Early-return avoids FnOnce conflict with the builder API inside <Show>.
+    if !handle.visible.get_untracked() {
+        return None::<AnyView>.into_any();
+    }
+
+    // ── Resolve tag name ───────────────────────────────────────────────────────
+    // Stage 1: TextStyle sets tagName.
+    // Stage 2: TagName (if not Auto) overrides.
+    // Mirrors the two switch blocks in BuildRenderTree.
     let resolved_tag: String = tag_name
         .as_str()
         .unwrap_or_else(|| text_style.auto_tag())
         .to_string();
 
-    // ── CSS class ─────────────────────────────────────────────────────────────
-    // Mirrors Blazor:
-    //   ClassList.Create(className)    ← style class is the root
-    //       .Add(Attributes)           ← caller attrs["class"]
-    //       .Add(alignClassName, TextAlign != TextAlign.Left)
+    // ── CSS class ──────────────────────────────────────────────────────────────
+    // Mirrors:
+    //   ClassList.Create(className)
+    //       .Add(Attributes)                          ← attrs["class"] key
+    //       .Add(alignClassName, TextAlign != Left)   ← conditional
     //       .ToString()
     let style_class = text_style.css_class();
 
@@ -138,51 +152,60 @@ pub fn RadzenText(
         parts.join(" ")
     };
 
-    let style      = base.style.clone().unwrap_or_default();
-    let handle_id  = handle.id.clone();
-    let visible    = handle.visible;
-    let enter_cb   = handle.on_mouse_enter.clone();
-    let leave_cb   = handle.on_mouse_leave.clone();
-    let ctx_cb     = handle.on_context_menu.clone();
+    // ── Attribute values ───────────────────────────────────────────────────────
+    // C# attribute emit order: style → spread Attributes → class → id.
+    let style     = base.style.clone().unwrap_or_default();
+    let handle_id = handle.id.clone();
+    let enter_cb  = handle.on_mouse_enter.clone();
+    let leave_cb  = handle.on_mouse_leave.clone();
+    let ctx_cb    = handle.on_context_menu.clone();
 
-    // ── Dynamic-tag rendering ─────────────────────────────────────────────────
-    // `Custom { tag_name: Cow::Owned(…) }` is the correct Leptos 0.8 / tachys
-    // way to construct a runtime-determined tag.  Everything is moved in a
-    // single block — nothing is cloned after this point.
-    view! {
-        <Show when=move || visible.get()>
-            {
-                // Build anchor child from raw String data — no pre-built view
-                // to avoid the non-Clone HtmlElement issue.
-                let anchor_child: Option<AnyView> = anchor.as_deref().map(|anc| {
-                    let href = format!("#{anc}");
-                    view! {
-                        <a id=anc.to_string() href=href class="rz-link">
-                            <i class="notranslate rzi">"link"</i>
-                        </a>
-                    }
-                    .into_any()
-                });
+    // ── Anchor child ───────────────────────────────────────────────────────────
+    // Mirrors RadzenTextAnchor.BuildRenderTree:
+    //   builder.OpenElement(1, "a");
+    //   builder.AddAttribute(2, "id", GetAnchor());
+    //   builder.AddAttribute(3, "href", GetPath());   // path#anchor in C#
+    //   builder.AddAttribute(4, "class", "rz-link");
+    //   builder.OpenComponent<RadzenIcon>(7);
+    //   builder.AddAttribute(8, "Icon", "link");
+    //
+    // CSR simplification: href = "#anchor" (no NavigationManager.Uri).
+    // GetAnchor() in C# splits "page#fragment" on '#' — we accept bare ids.
+    let anchor_child: Option<AnyView> = anchor.as_deref().map(|anc| {
+        let href = format!("#{anc}");
+        view! {
+            <a id=anc.to_string() href=href class="rz-link">
+                <RadzenIcon icon=Some("link".to_string()) />
+            </a>
+        }
+        .into_any()
+    });
 
-                // Build main content child — text takes priority over children.
-                let content_child: AnyView = match text {
-                    Some(ref t) => t.clone().into_any(),
-                    None => match children.as_ref() {
-                        Some(c) => c().into_any(),
-                        None    => "".into_any(),
-                    },
-                };
+    // ── Content child ──────────────────────────────────────────────────────────
+    // Mirrors:
+    //   if (!string.IsNullOrEmpty(Text)) AddContent(5, Text)
+    //   else AddContent(5, ChildContent)
+    let content_child: AnyView = match text {
+        Some(ref t) => t.clone().into_any(),
+        None => match children.as_ref() {
+            Some(c) => c().into_any(),
+            None    => "".into_any(),
+        },
+    };
 
-                leptos::html::custom(Custom { tag_name: Cow::Owned(resolved_tag) })
-                    .attr("id",    handle_id)
-                    .attr("class", css_class)
-                    .attr("style", style)
-                    .on(leptos::ev::mouseenter,  move |ev| enter_cb(ev))
-                    .on(leptos::ev::mouseleave,  move |ev| leave_cb(ev))
-                    .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev))
-                    .child(content_child)
-                    .child(anchor_child)
-            }
-        </Show>
-    }
+    // ── Render ─────────────────────────────────────────────────────────────────
+    // `leptos::html::custom(tag_str)` = Blazor's `builder.OpenElement(0, tagName)`.
+    // Attribute order mirrors C#: style → class → id.
+    Some(
+        leptos::html::custom(resolved_tag)
+            .attr("style", style)
+            .attr("class", css_class)
+            .attr("id",    handle_id)
+            .on(leptos::ev::mouseenter,  move |ev| enter_cb(ev))
+            .on(leptos::ev::mouseleave,  move |ev| leave_cb(ev))
+            .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev))
+            .child(content_child)
+            .child(anchor_child)
+    )
+    .into_any()
 }

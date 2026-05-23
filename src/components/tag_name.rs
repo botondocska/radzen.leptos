@@ -2,6 +2,7 @@
 ///
 /// Mirrors `Radzen.TagName` in `Radzen.Blazor/RadzenText.cs`.
 ///
+/// Variant order matches the C# enum exactly.
 /// When set to [`TagName::Auto`] (the default) the tag is derived from
 /// [`TextStyle::auto_tag`] — e.g. `TextStyle::H3` renders `<h3>`.
 /// Any explicit variant overrides that automatic choice regardless of style,
@@ -9,10 +10,6 @@
 /// an `<h2>` element).
 #[derive(Clone, PartialEq, Default, Debug)]
 pub enum TagName {
-    /// Tag is chosen automatically from [`TextStyle`]. Default.
-    #[default]
-    Auto,
-
     /// Render as `<div>`.
     Div,
     /// Render as `<span>`.
@@ -37,6 +34,9 @@ pub enum TagName {
     Button,
     /// Render as `<pre>`.
     Pre,
+    /// Tag is chosen automatically from [`TextStyle`]. Default.
+    #[default]
+    Auto,
 }
 
 impl TagName {
@@ -45,19 +45,19 @@ impl TagName {
     /// [`TextStyle::auto_tag`]).
     pub fn as_str(&self) -> Option<&'static str> {
         match self {
-            TagName::Auto => None,
-            TagName::Div => Some("div"),
-            TagName::Span => Some("span"),
-            TagName::P => Some("p"),
-            TagName::H1 => Some("h1"),
-            TagName::H2 => Some("h2"),
-            TagName::H3 => Some("h3"),
-            TagName::H4 => Some("h4"),
-            TagName::H5 => Some("h5"),
-            TagName::H6 => Some("h6"),
-            TagName::A => Some("a"),
+            TagName::Div    => Some("div"),
+            TagName::Span   => Some("span"),
+            TagName::P      => Some("p"),
+            TagName::H1     => Some("h1"),
+            TagName::H2     => Some("h2"),
+            TagName::H3     => Some("h3"),
+            TagName::H4     => Some("h4"),
+            TagName::H5     => Some("h5"),
+            TagName::H6     => Some("h6"),
+            TagName::A      => Some("a"),
             TagName::Button => Some("button"),
-            TagName::Pre => Some("pre"),
+            TagName::Pre    => Some("pre"),
+            TagName::Auto   => None,
         }
     }
 }

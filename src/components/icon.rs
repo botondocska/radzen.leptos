@@ -1,21 +1,18 @@
 //! RadzenIcon component — mirrors C# Radzen.Blazor.RadzenIcon.
 //!
-//! Blazor razor template (abbreviated):
-//!   ```razor
-//!   @if (Visible) {
-//!       <i @ref="@Element" @attributes="Attributes"
-//!          class="@GetCssClass()" style="@getStyle()" id="@GetId()">@Icon</i>
-//!   }
-//!   ```
+//! # CSS class order (mirrors Blazor exactly)
+//! `notranslate rzi [rzi-{style}] [caller-class]`
 //!
-//! CSS class — mirrors `GetComponentCssClass()`:
-//!   `$"notranslate rzi{(IconStyle.HasValue ? $" rzi-{IconStyle.Value.ToString().ToLowerInvariant()}" : "")}"`
+//! Blazor `GetComponentCssClass()`:
+//! ```csharp
+//! $"notranslate rzi{(IconStyle.HasValue ? $" rzi-{IconStyle.Value.ToString().ToLowerInvariant()}" : "")}"
+//! ```
+//! `RadzenComponent.GetCssClass()` then appends any caller `class` attribute last.
 //!
 //! Style — mirrors `getStyle()`:
-//!   `$"{(!string.IsNullOrEmpty(IconColor) ? $"color:{IconColor};" : null)}{Style}"`
-//!
-//! Visibility: uses `@if (Visible)` — same as RadzenBadge, component is fully
-//! removed from the DOM when invisible (not display:none like RadzenCard).
+//! ```csharp
+//! $"{(!string.IsNullOrEmpty(IconColor) ? $"color:{IconColor};" : null)}{Style}"
+//! ```
 
 use crate::components::{
     IconStyle,
@@ -24,12 +21,6 @@ use crate::components::{
 use leptos::prelude::*;
 
 /// RadzenIcon component.
-///
-/// Displays a Material Symbols icon glyph (2,500+ icons) using the embedded
-/// variable font. Icon names use underscores, e.g. `"home"`, `"account_circle"`.
-///
-/// Color is controlled via `icon_color` (inline `color:` style) or CSS inheritance.
-/// The visual variant (Outlined / Filled / Rounded / Sharp) is set via `icon_style`.
 #[component]
 pub fn RadzenIcon(
     /// Base component properties (id, style, visible, attrs, locale, mouse events).
@@ -37,46 +28,38 @@ pub fn RadzenIcon(
     base: ComponentProps,
 
     /// Material Symbols icon name, e.g. `"home"`, `"settings"`, `"check_circle"`.
-    ///
-    /// When `None` the `<i>` renders empty (matching Blazor's `string? Icon`).
     #[prop(default = None, into)]
     icon: Option<String>,
 
     /// Custom CSS color for the icon, e.g. `"#FF0000"`, `"var(--rz-primary)"`.
-    ///
-    /// When `Some`, prepended as `color:{value};` in the style attribute —
-    /// mirrors Blazor's `!string.IsNullOrEmpty(IconColor) ? $"color:{IconColor};" : null`.
-    /// When `None`, the icon inherits the current text color.
     #[prop(default = None, into)]
     icon_color: Option<String>,
 
     /// Visual style variant of the icon. Default: `None` (Outlined, no class added).
-    ///
-    /// `None` mirrors Blazor's nullable `IconStyle? IconStyle` — no `rzi-*` class
-    /// is emitted, and the font renders in its default Outlined appearance.
-    /// Set to `Some(IconStyle::Filled)` etc. to add `rzi-filled` and so on.
     #[prop(default = None)]
     icon_style: Option<IconStyle>,
 ) -> impl IntoView {
-    let handle = use_radzen_base(&base, "notranslate rzi");
+    // use_radzen_base with "" — full class built by ClassList below so that
+    // the rzi-{style} suffix always comes before any caller attrs["class"].
+    let handle = use_radzen_base(&base, "");
 
-    // ── CSS class ──────────────────────────────────────────────────────────────
-    // Mirrors GetComponentCssClass():
+    // ── CSS class ─────────────────────────────────────────────────────────────
+    // Mirrors Blazor GetComponentCssClass():
     //   $"notranslate rzi{(IconStyle.HasValue ? $" rzi-{...ToLowerInvariant()}" : "")}"
-    //
-    // use_radzen_base was called with "notranslate rzi" as the component class,
-    // so handle.css_class already contains that (+ any caller attrs["class"]).
-    // We only append the optional rzi-* variant class.
-    let css_class = match icon_style {
-        Some(style) => format!("{} rzi-{}", handle.css_class, style.as_str()),
-        None => handle.css_class.clone(),
+    // then GetCssClass appends caller class last.
+    let css_class = {
+        let mut cl = crate::components::ClassList::create("notranslate rzi");
+        if let Some(style) = icon_style {
+            cl = cl.add_class(format!("rzi-{}", style.as_str()));
+        }
+        cl.add_caller_class(
+            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+        )
+        .finish()
     };
 
-    // ── Style ──────────────────────────────────────────────────────────────────
-    // Mirrors getStyle():
-    //   $"{(IconColor != null ? $"color:{IconColor};" : null)}{Style}"
-    //
-    // IconColor is prepended, then the base Style string follows.
+    // ── Style ─────────────────────────────────────────────────────────────────
+    // Mirrors getStyle(): color:{IconColor}; prepended before base Style.
     let style = {
         let color_part = icon_color
             .as_deref()
@@ -87,14 +70,11 @@ pub fn RadzenIcon(
     };
 
     // ── Event handlers ─────────────────────────────────────────────────────────
-    let enter_cb = handle.on_mouse_enter.clone();
-    let leave_cb = handle.on_mouse_leave.clone();
-    let ctx_cb = handle.on_context_menu.clone();
+    let enter_cb  = handle.on_mouse_enter.clone();
+    let leave_cb  = handle.on_mouse_leave.clone();
+    let ctx_cb    = handle.on_context_menu.clone();
     let handle_id = handle.id.clone();
-
-    // ── Visibility — @if (Visible), same pattern as RadzenBadge ───────────────
-    // Component is fully removed from the DOM when invisible.
-    let visible = handle.visible;
+    let visible   = handle.visible;
 
     view! {
         <Show when=move || visible.get()>

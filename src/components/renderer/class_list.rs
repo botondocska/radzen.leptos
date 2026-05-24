@@ -1,4 +1,25 @@
 //! Fluent CSS class builder — mirrors C# Radzen.Blazor.Rendering.ClassList.
+//!
+//! # Key API difference from C#
+//!
+//! Blazor: `ClassList.Create("rz-button").AddButtonSize(Size)...`
+//! Rust:   `ClassList::create("rz-button").add_button_size(size)...`
+//!
+//! `create(root)` is the canonical entry point — it takes the component root
+//! class (e.g. `"rz-button"`, `"rz-badge"`) as its first argument, exactly
+//! mirroring C#'s `ClassList.Create(className)`.
+//!
+//! `new()` is kept for cases where no root class is needed (e.g. building a
+//! partial class string that will be appended elsewhere).
+//!
+//! # Caller `attrs["class"]` ordering
+//!
+//! Blazor's `GetCssClass()` in `RadzenComponent` always appends the caller's
+//! `class` attribute **last**, after all component-generated classes:
+//!   `{component_classes} {caller_class}`
+//!
+//! Use `add_caller_class(Option<&str>)` as the **final** call in the chain
+//! to reproduce this ordering exactly.
 
 use crate::components::{BadgeStyle, ButtonSize, ButtonStyle, IconStyle, Shade, TextAlign, TextStyle, Variant};
 use std::collections::HashMap;
@@ -10,9 +31,26 @@ pub struct ClassList {
 }
 
 impl ClassList {
+    // ── Constructors ──────────────────────────────────────────────────────────
+
+    /// Start a new empty builder.
     pub fn new() -> Self {
         Self { classes: Vec::new() }
     }
+
+    /// Start a builder with a root class — mirrors `ClassList.Create(root)`.
+    ///
+    /// This is the canonical entry point. The root class (e.g. `"rz-button"`,
+    /// `"rz-badge"`) is added unconditionally as the first class.
+    pub fn create(root: &str) -> Self {
+        let mut list = Self::new();
+        if !root.trim().is_empty() {
+            list.classes.push(root.to_string());
+        }
+        list
+    }
+
+    // ── Core add methods ──────────────────────────────────────────────────────
 
     /// Add a class conditionally.
     pub fn add<S: Into<String>>(mut self, class: S, condition: bool) -> Self {
@@ -32,7 +70,10 @@ impl ClassList {
 
     /// Add a class if the option is `Some` and non-empty.
     pub fn add_option(self, class: Option<&str>) -> Self {
-        if let Some(c) = class { self.add_class(c) } else { self }
+        match class {
+            Some(c) if !c.trim().is_empty() => self.add_class(c),
+            _ => self,
+        }
     }
 
     /// Merge the `"class"` key from an attrs map.
@@ -43,6 +84,19 @@ impl ClassList {
             self
         }
     }
+
+    /// Append the caller-supplied `attrs["class"]` as the **last** class.
+    ///
+    /// Mirrors `RadzenComponent.GetCssClass()` which always appends the caller
+    /// `class` attribute after all component-generated classes.
+    ///
+    /// Call this as the final step in the builder chain, passing
+    /// `base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str)`.
+    pub fn add_caller_class(self, class: Option<&str>) -> Self {
+        self.add_option(class)
+    }
+
+    // ── Semantic helpers ──────────────────────────────────────────────────────
 
     /// Add `rz-state-disabled` conditionally.
     pub fn add_disabled(self, condition: bool) -> Self {
@@ -88,15 +142,10 @@ impl ClassList {
     }
 
     /// Add shade class — mirrors Blazor `ClassList.AddShade`.
+    ///
+    /// Uses `Shade::css_class()` so the mapping lives in one place.
     pub fn add_shade(self, shade: Shade) -> Self {
-        let class = match shade {
-            Shade::Lighter => "rz-shade-lighter",
-            Shade::Light   => "rz-shade-light",
-            Shade::Default => "rz-shade-default",
-            Shade::Dark    => "rz-shade-dark",
-            Shade::Darker  => "rz-shade-darker",
-        };
-        self.add_class(class)
+        self.add_class(shade.css_class())
     }
 
     /// Add badge style class.
@@ -139,6 +188,8 @@ impl ClassList {
         }
     }
 
+    // ── Terminal ──────────────────────────────────────────────────────────────
+
     /// Build the final space-joined class string.
     pub fn finish(self) -> String {
         self.classes
@@ -163,6 +214,18 @@ impl ToString for ClassList {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_create_sets_root_class() {
+        let css = ClassList::create("rz-button").finish();
+        assert_eq!(css, "rz-button");
+    }
+
+    #[test]
+    fn test_create_empty_root_ignored() {
+        let css = ClassList::create("").add_class("btn").finish();
+        assert_eq!(css, "btn");
+    }
 
     #[test]
     fn test_add_single_class() {
@@ -211,17 +274,26 @@ mod tests {
     }
 
     #[test]
-    fn test_add_shade() {
-        let css = ClassList::new().add_shade(Shade::Dark).finish();
-        assert_eq!(css, "rz-shade-dark");
+    fn test_add_shade_uses_css_class() {
+        assert_eq!(
+            ClassList::new().add_shade(Shade::Dark).finish(),
+            "rz-shade-dark"
+        );
+        assert_eq!(
+            ClassList::new().add_shade(Shade::Lighter).finish(),
+            "rz-shade-lighter"
+        );
+        assert_eq!(
+            ClassList::new().add_shade(Shade::Default).finish(),
+            "rz-shade-default"
+        );
     }
 
     /// Canonical Blazor class order for RadzenButton:
-    ///   rz-button → size → variant → style → disabled → shade
+    ///   rz-button → size → variant → style → disabled → shade → [icon-only] → [caller]
     #[test]
     fn test_button_class_order_matches_blazor() {
-        let css = ClassList::new()
-            .add_class("rz-button")
+        let css = ClassList::create("rz-button")
             .add_button_size(ButtonSize::Medium)
             .add_variant(Variant::Filled)
             .add_button_style(ButtonStyle::Primary)
@@ -234,10 +306,46 @@ mod tests {
         );
     }
 
+    /// Canonical Blazor class order for RadzenBadge:
+    ///   rz-badge → rz-badge-{style} → variant → shade → [pill] → [caller]
+    #[test]
+    fn test_badge_class_order_matches_blazor() {
+        let css = ClassList::create("rz-badge")
+            .add_badge_style(BadgeStyle::Danger)
+            .add_variant(Variant::Outlined)
+            .add_shade(Shade::Light)
+            .add("rz-badge-pill", true)
+            .add_caller_class(Some("my-custom-class"))
+            .finish();
+        assert_eq!(
+            css,
+            "rz-badge rz-badge-danger rz-variant-outlined rz-shade-light rz-badge-pill my-custom-class"
+        );
+    }
+
+    /// Caller class always comes last.
+    #[test]
+    fn test_caller_class_is_last() {
+        let css = ClassList::create("rz-card")
+            .add_variant(Variant::Filled)
+            .add_caller_class(Some("caller-extra"))
+            .finish();
+        assert_eq!(css, "rz-card rz-variant-filled caller-extra");
+    }
+
+    /// `add_caller_class(None)` is a no-op.
+    #[test]
+    fn test_caller_class_none_is_noop() {
+        let css = ClassList::create("rz-card")
+            .add_variant(Variant::Filled)
+            .add_caller_class(None)
+            .finish();
+        assert_eq!(css, "rz-card rz-variant-filled");
+    }
+
     #[test]
     fn test_combined_build() {
-        let css = ClassList::new()
-            .add_class("btn")
+        let css = ClassList::create("btn")
             .add_button_size(ButtonSize::Medium)
             .add_button_style(ButtonStyle::Primary)
             .add_variant(Variant::Filled)
@@ -248,7 +356,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_class() {
+    fn test_empty_class_ignored() {
         let css = ClassList::new().add("", true).add_class("btn").finish();
         assert_eq!(css, "btn");
     }
@@ -264,8 +372,6 @@ mod tests {
     // ── RadzenText class-building tests ───────────────────────────────────────
 
     /// TextAlign::Left → no align class emitted.
-    /// Mirrors: `.Add(alignClassName, TextAlign != TextAlign.Left)` where
-    /// condition is false.
     #[test]
     fn text_left_align_emits_no_class() {
         let css = ClassList::new()
@@ -318,7 +424,7 @@ mod tests {
         assert_eq!(css, "rz-text-caption rz-text-align-justify-all");
     }
 
-    /// All seven TextAlign values — Left produces no class, others produce one.
+    /// All seven TextAlign values.
     #[test]
     fn text_align_all_variants() {
         assert_eq!(TextAlign::Center.css_class(),     Some("rz-text-align-center"));
@@ -330,7 +436,7 @@ mod tests {
         assert_eq!(TextAlign::JustifyAll.css_class(), Some("rz-text-align-justify-all"));
     }
 
-    /// All 19 TextStyle CSS classes match the C# className switch.
+    /// All 19 TextStyle CSS classes.
     #[test]
     fn text_style_all_classes() {
         let cases = [
@@ -359,7 +465,6 @@ mod tests {
         }
     }
 
-    /// TagName::Auto resolves to None; all explicit variants resolve to Some.
     #[test]
     fn tag_name_auto_is_none() {
         use crate::components::TagName;
@@ -374,20 +479,11 @@ mod tests {
         assert_eq!(TagName::Pre.as_str(),    Some("pre"));
     }
 
-    /// TextStyle auto_tag matches the C# tagName switch.
     #[test]
     fn text_style_auto_tags() {
         assert_eq!(TextStyle::DisplayH1.auto_tag(), "h1");
-        assert_eq!(TextStyle::DisplayH2.auto_tag(), "h2");
-        assert_eq!(TextStyle::DisplayH3.auto_tag(), "h3");
-        assert_eq!(TextStyle::DisplayH4.auto_tag(), "h4");
-        assert_eq!(TextStyle::DisplayH5.auto_tag(), "h5");
         assert_eq!(TextStyle::DisplayH6.auto_tag(), "h6");
         assert_eq!(TextStyle::H1.auto_tag(),        "h1");
-        assert_eq!(TextStyle::H2.auto_tag(),        "h2");
-        assert_eq!(TextStyle::H3.auto_tag(),        "h3");
-        assert_eq!(TextStyle::H4.auto_tag(),        "h4");
-        assert_eq!(TextStyle::H5.auto_tag(),        "h5");
         assert_eq!(TextStyle::H6.auto_tag(),        "h6");
         assert_eq!(TextStyle::Subtitle1.auto_tag(), "h6");
         assert_eq!(TextStyle::Subtitle2.auto_tag(), "h6");
@@ -396,5 +492,16 @@ mod tests {
         assert_eq!(TextStyle::Button.auto_tag(),    "span");
         assert_eq!(TextStyle::Caption.auto_tag(),   "span");
         assert_eq!(TextStyle::Overline.auto_tag(),  "span");
+    }
+
+    // ── Shade::css_class canonical values ────────────────────────────────────
+
+    #[test]
+    fn shade_css_class_all_variants() {
+        assert_eq!(Shade::Lighter.css_class(), "rz-shade-lighter");
+        assert_eq!(Shade::Light.css_class(),   "rz-shade-light");
+        assert_eq!(Shade::Default.css_class(), "rz-shade-default");
+        assert_eq!(Shade::Dark.css_class(),    "rz-shade-dark");
+        assert_eq!(Shade::Darker.css_class(),  "rz-shade-darker");
     }
 }

@@ -1,12 +1,23 @@
 //! RadzenBadge component — mirrors C# Radzen.Blazor.RadzenBadge.
 //!
-//! Content priority (mirrors Blazor): `children` (ChildContent) takes precedence
-//! over `text` when both are supplied, matching the C# razor template behaviour
-//! confirmed by `Badge_Renders_ChildContent` in BadgeTests.cs.
+//! # CSS class order (mirrors Blazor exactly)
+//! `rz-badge rz-badge-{style} rz-variant-{v} rz-shade-{s} [rz-badge-pill] [caller-class]`
 //!
-//! Visibility (mirrors Blazor `Badge_NotVisible_DoesNotRender`): when
-//! `base.visible` is `false` the component renders **nothing** — no element,
-//! no `display:none` wrapper. This is identical to Blazor's `@if(Visible)` guard.
+//! Blazor `GetComponentCssClass()`:
+//! ```csharp
+//! ClassList.Create("rz-badge")
+//!     .Add($"rz-badge-{BadgeStyle.ToString().ToLowerInvariant()}")
+//!     .AddVariant(Variant)
+//!     .AddShade(Shade)
+//!     .Add("rz-badge-pill", IsPill)
+//!     .ToString()
+//! ```
+//! `RadzenComponent.GetCssClass()` then appends any caller `class` attribute last.
+//!
+//! Content priority (mirrors Blazor): `children` (ChildContent) takes precedence
+//! over `text` when both are supplied.
+//!
+//! Visibility: when `base.visible` is `false` the component renders **nothing**.
 
 use crate::components::{
     BadgeStyle, ClassList, Shade, Variant,
@@ -15,13 +26,6 @@ use crate::components::{
 use leptos::prelude::*;
 
 /// RadzenBadge component.
-///
-/// A compact visual indicator for notification counts, statuses, or short text
-/// labels. Content can be simple text via `text` or custom markup via `children`
-/// (children takes precedence when both are provided).
-///
-/// Can be absolutely positioned to overlay other elements (e.g. a notification
-/// icon with a count badge).
 #[component]
 pub fn RadzenBadge(
     /// Base component properties (id, style, visible, attrs, locale, mouse events).
@@ -48,69 +52,51 @@ pub fn RadzenBadge(
     shade: Shade,
 
     /// Render as pill-shaped (rounded ends) instead of rectangular.
-    /// Default: `false`.
     #[prop(default = false)]
     is_pill: bool,
 
     /// Optional child content — overrides `text` when provided.
-    ///
-    /// Mirrors Blazor's `RenderFragment? ChildContent`.
     #[prop(optional)]
     children: Option<ChildrenFn>,
 ) -> impl IntoView {
-    let handle = use_radzen_base(&base, "rz-badge");
+    // use_radzen_base is called with "" — the full class is built by ClassList
+    // below so that class ordering is fully controlled here, matching Blazor's
+    // GetComponentCssClass() → GetCssClass() pipeline.
+    let handle = use_radzen_base(&base, "");
 
     // ── CSS class ─────────────────────────────────────────────────────────────
-    // Mirrors Blazor GetComponentCssClass():
+    // Mirrors Blazor exactly:
     //   ClassList.Create("rz-badge")
     //       .Add($"rz-badge-{BadgeStyle.ToString().ToLowerInvariant()}")
     //       .AddVariant(Variant)
     //       .AddShade(Shade)
     //       .Add("rz-badge-pill", IsPill)
-    //       .ToString()
-    //
-    // `use_radzen_base` already merges any caller `attrs["class"]` into
-    // `handle.css_class`, so we build the full class here via ClassList and
-    // do NOT re-add "rz-badge" a second time from the ClassList itself —
-    // the base handle provides it via the `component_class` argument above.
-    // Additional caller classes from attrs are appended by use_radzen_base.
-    let css_class = ClassList::new()
+    //       [GetCssClass appends caller class last]
+    let css_class = ClassList::create("rz-badge")
         .add_badge_style(badge_style)
         .add_variant(variant)
         .add_shade(shade)
         .add("rz-badge-pill", is_pill)
+        .add_caller_class(
+            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+        )
         .finish();
-
-    let combined_class = if css_class.is_empty() {
-        handle.css_class.clone()
-    } else {
-        format!("{} {}", handle.css_class, css_class)
-    };
 
     // ── Style ─────────────────────────────────────────────────────────────────
     let style = base.style.clone().unwrap_or_default();
 
     // ── Event handlers ────────────────────────────────────────────────────────
-    // Each Arc is cloned once here.  Inside `<Show>` the children closure is
-    // `Fn` (called on every render), so the `move |ev|` closures must not
-    // *consume* the Arc — they capture a further clone made at closure-build
-    // time.  Wrapping in another Arc::clone-capturing closure keeps the outer
-    // closure `Fn`.  This is the same pattern button.rs uses.
-    let enter_cb = handle.on_mouse_enter.clone();
-    let leave_cb = handle.on_mouse_leave.clone();
-    let ctx_cb = handle.on_context_menu.clone();
+    let enter_cb  = handle.on_mouse_enter.clone();
+    let leave_cb  = handle.on_mouse_leave.clone();
+    let ctx_cb    = handle.on_context_menu.clone();
     let handle_id = handle.id.clone();
-
-    // ── Visibility guard ──────────────────────────────────────────────────────
-    // Mirrors Blazor's `@if(Visible)` — when false, renders nothing at all.
-    // Confirmed by Badge_NotVisible_DoesNotRender in BadgeTests.cs.
-    let visible = handle.visible;
+    let visible   = handle.visible;
 
     view! {
         <Show when=move || visible.get()>
             <span
                 id=handle_id.clone()
-                class=combined_class.clone()
+                class=css_class.clone()
                 style=style.clone()
                 on:mouseenter={
                     let cb = enter_cb.clone();
@@ -125,8 +111,6 @@ pub fn RadzenBadge(
                     move |ev| cb(ev)
                 }
             >
-                // ChildContent takes priority over Text — mirrors Blazor's
-                // `ChildContent ?? (_ => builder.AddContent(0, Text))`.
                 {match children.as_ref() {
                     Some(c) => view! { {c()} }.into_any(),
                     None => view! {

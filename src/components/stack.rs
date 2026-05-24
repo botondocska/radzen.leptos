@@ -1,17 +1,12 @@
 //! RadzenStack component — mirrors C# Radzen.Blazor.RadzenStack.
 //!
-//! ## Blazor source reference
+//! # CSS class
+//! Always `"rz-stack"` (plus caller `attrs["class"]` appended last).
+//! The `rz-stack` CSS class owns `display: flex` — it must not be emitted
+//! in the inline style.
 //!
-//! Inherits from `RadzenFlexComponent` which itself extends
-//! `RadzenComponentWithChildren`. The full class hierarchy:
-//!   RadzenStack : RadzenFlexComponent : RadzenComponentWithChildren : RadzenComponent
-//!
-//! ### CSS class — `GetComponentCssClass()`
-//! Always returns `"rz-stack"`. Caller `attrs["class"]` is appended by
-//! `use_radzen_base` (same pattern as every other component).
-//!
-//! ### Inline style — `GetComponentStyle()` / `GetStyle()`
-//! Blazor emits all layout as **inline style**, not CSS classes:
+//! # Inline style — `GetComponentStyle()`
+//! Only instance-specific flex properties are emitted as inline style:
 //!   ```
 //!   flex-direction: {row|column}[-reverse]
 //!   gap: {Gap}                      (only when Gap is non-empty)
@@ -19,28 +14,14 @@
 //!   justify-content: {value}        (only when JustifyContent != Normal)
 //!   flex-wrap: {value}              (only when Wrap != NoWrap)
 //!   ```
-//! `GetStyle()` then concatenates `GetComponentStyle()` with the caller's
-//! `Style` attribute — identical to how `RadzenComponent.GetStyle()` works.
+//! `display: flex` is **not** emitted here — it lives in the stylesheet via
+//! `.rz-stack { display: flex; }`, matching Blazor's `GetComponentStyle()`.
 //!
-//! ### Visibility
+//! # Visibility
 //! Mirrors `@if (Visible)` — element is fully absent when invisible.
-//! Uses the same early-return `None::<AnyView>.into_any()` pattern as
-//! `RadzenText`, avoiding `Fn` / `FnOnce` issues with the builder API.
-//!
-//! ### Razor template
-//! ```razor
-//! @if (Visible) {
-//!     <div @ref="Element" style="@GetStyle()" @attributes="Attributes"
-//!          class="@GetCssClass()" id="@GetId()">
-//!         @ChildContent
-//!     </div>
-//! }
-//! ```
-//! Attribute order in Blazor: style → spread Attributes → class → id.
-//! We mirror this in the Leptos builder chain.
 
 use crate::components::{
-    AlignItems, FlexWrap, JustifyContent, Orientation,
+    AlignItems, ClassList, FlexWrap, JustifyContent, Orientation,
     base_component::{ComponentProps, use_radzen_base},
 };
 use leptos::prelude::*;
@@ -49,20 +30,6 @@ use leptos::prelude::*;
 ///
 /// A flexbox container that arranges children in a vertical or horizontal
 /// stack with configurable gap, alignment, justification, and wrapping.
-/// Simpler alternative to `RadzenRow`/`RadzenColumn` for linear layouts.
-///
-/// # CSS
-/// The component class is always `"rz-stack"`.  All layout behaviour is
-/// expressed as **inline style** (`flex-direction`, `gap`, `align-items`,
-/// `justify-content`, `flex-wrap`) — no layout utility classes are added.
-///
-/// # Defaults
-/// - `orientation` — `Vertical` (`flex-direction: column`)
-/// - `align_items` — `Normal` (not emitted)
-/// - `justify_content` — `Normal` (not emitted)
-/// - `wrap` — `NoWrap` (not emitted)
-/// - `gap` — `None` (not emitted)
-/// - `reverse` — `false`
 #[component]
 pub fn RadzenStack(
     /// Base component properties (id, style, visible, attrs, locale, mouse events).
@@ -86,36 +53,38 @@ pub fn RadzenStack(
     wrap: FlexWrap,
 
     /// Gap between children. Accepts any CSS length, e.g. `"1rem"`, `"16px"`.
-    /// When `None` or empty, no `gap` is emitted. Default: `None`.
+    /// When `None` or empty, no `gap` is emitted.
     #[prop(default = None, into)]
     gap: Option<String>,
 
-    /// Reverse child order. When `true`, appends `-reverse` to `flex-direction`.
-    /// Default: `false`.
+    /// Reverse child order. Appends `-reverse` to `flex-direction`.
     #[prop(default = false)]
     reverse: bool,
 
-    /// Child content — always required (mirrors `RadzenComponentWithChildren`).
-    /// `ChildrenFn` rather than `Children` to satisfy Leptos `Fn` bounds.
+    /// Child content.
     children: ChildrenFn,
 ) -> impl IntoView {
-    let handle = use_radzen_base(&base, "rz-stack");
+    // use_radzen_base with "" — full class built by ClassList below.
+    let handle = use_radzen_base(&base, "");
 
     // ── Visibility — mirrors `@if (Visible)` ──────────────────────────────────
-    // Early return produces no DOM node when invisible — same pattern as
-    // RadzenText (avoids Fn/FnOnce conflict with the custom-element builder).
     if !handle.visible.get_untracked() {
         return None::<AnyView>.into_any();
     }
 
-    // ── CSS class ──────────────────────────────────────────────────────────────
+    // ── CSS class ─────────────────────────────────────────────────────────────
     // GetComponentCssClass() always returns "rz-stack".
-    // use_radzen_base already put "rz-stack" in handle.css_class and appended
-    // any caller attrs["class"] — nothing else to add here.
-    let css_class = handle.css_class.clone();
+    // GetCssClass() appends caller attrs["class"] last.
+    let css_class = ClassList::create("rz-stack")
+        .add_caller_class(
+            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+        )
+        .finish();
 
     // ── Inline style — GetComponentStyle() ───────────────────────────────────
-    // flex-direction: {row|column}[-reverse]
+    // Blazor emits ONLY the instance-varying flex properties here.
+    // `display: flex` is NOT emitted — it is set by the `rz-stack` CSS class
+    // in the Radzen stylesheet, exactly as Blazor's GetComponentStyle() does.
     let flex_dir = match (&orientation, reverse) {
         (Orientation::Horizontal, false) => "row",
         (Orientation::Horizontal, true)  => "row-reverse",
@@ -123,10 +92,9 @@ pub fn RadzenStack(
         (Orientation::Vertical,   true)  => "column-reverse",
     };
 
-    let mut component_style = format!("display: flex; flex-direction: {};", flex_dir);
+    let mut component_style = format!("flex-direction: {};", flex_dir);
 
-
-    // gap — only when a non-empty value is provided
+    // gap — only when non-empty
     if let Some(ref g) = gap {
         if !g.trim().is_empty() {
             component_style.push_str(&format!(" gap: {};", g.trim()));
@@ -148,7 +116,7 @@ pub fn RadzenStack(
         component_style.push_str(&format!(" flex-wrap: {};", fw));
     }
 
-    // GetStyle() = GetComponentStyle() + caller Style (attribute order mirrors C#)
+    // GetStyle() = GetComponentStyle() + caller Style
     let caller_style = base.style.clone().unwrap_or_default();
     let style = if caller_style.is_empty() {
         component_style
@@ -162,8 +130,6 @@ pub fn RadzenStack(
     let ctx_cb    = handle.on_context_menu.clone();
     let handle_id = handle.id.clone();
 
-    // ── Render ─────────────────────────────────────────────────────────────────
-    // Blazor attribute order: style → spread Attributes → class → id.
     Some(
         leptos::html::div()
             .attr("style",  style)

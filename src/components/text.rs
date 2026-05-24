@@ -174,7 +174,7 @@ pub fn RadzenText(
     let anchor_child: Option<AnyView> = anchor.as_deref().map(|anc| {
         let href = format!("#{anc}");
         view! {
-            <a id=anc.to_string() href=href class="rz-link">
+            <a id=anc.to_string() href=href class="rz-link" target="_top">
                 <RadzenIcon icon=Some("link".to_string()) />
             </a>
         }

@@ -1,3 +1,4 @@
+pub mod align_items;
 pub mod badge;
 pub mod badge_style;
 pub mod base_component;
@@ -5,10 +6,15 @@ pub mod button;
 pub mod button_size;
 pub mod button_style;
 pub mod button_type;
+pub mod grid;
 pub mod card;
+pub mod flex_wrap;
 pub mod icon;
 pub mod icon_style;
+pub mod justify_content;
+pub mod orientation;
 pub mod shade;
+pub mod stack;
 pub mod tag_name;
 pub mod text;
 pub mod text_align;
@@ -18,6 +24,7 @@ pub mod variant;
 pub mod renderer;
 
 // Re-export commonly used types
+pub use align_items::AlignItems;
 pub use badge::RadzenBadge;
 pub use badge_style::BadgeStyle;
 pub use base_component::{
@@ -29,8 +36,12 @@ pub use button_size::ButtonSize;
 pub use button_style::ButtonStyle;
 pub use button_type::ButtonType;
 pub use card::RadzenCard;
+pub use flex_wrap::FlexWrap;
 pub use icon::RadzenIcon;
 pub use icon_style::IconStyle;
+pub use justify_content::JustifyContent;
+pub use orientation::Orientation;
+pub use stack::RadzenStack;
 pub use renderer::ClassList;
 pub use shade::Shade;
 pub use tag_name::TagName;

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use crate::components::{
     BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, IconStyle, RadzenBadge, RadzenButton,
     RadzenCard, RadzenIcon, RadzenText, Shade, TagName, TextAlign, TextStyle, Variant,
+    AlignItems, FlexWrap, JustifyContent, Orientation, RadzenStack
 };
 
 /// Default Home Page
@@ -545,6 +546,118 @@ pub fn Home() -> impl IntoView {
                     text=Some("I am also visible.".to_string())
                 />
 
+                // ── Stack ─────────────────────────────────────────────────────────────
+                <h2 style="margin-top: 2rem;">"Stack"</h2>
+
+                // Vertical (default)
+                <h3 style="margin-top: 1rem;">"Stack — Vertical (default)"</h3>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Three badges stacked top-to-bottom with 0.5rem gap. This is the default orientation — no extra props needed beyond gap."
+                </p>
+                <RadzenStack gap=Some("0.5rem".to_string())>
+                    <RadzenBadge text=Some("First".to_string())  badge_style=BadgeStyle::Primary />
+                    <RadzenBadge text=Some("Second".to_string()) badge_style=BadgeStyle::Secondary />
+                    <RadzenBadge text=Some("Third".to_string())  badge_style=BadgeStyle::Info />
+                </RadzenStack>
+
+                // Horizontal
+                <h3 style="margin-top: 1rem;">"Stack — Horizontal"</h3>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Three badges arranged left-to-right with 1rem gap between them."
+                </p>
+                <RadzenStack orientation=Orientation::Horizontal gap=Some("1rem".to_string())>
+                    <RadzenBadge text=Some("First".to_string())  badge_style=BadgeStyle::Primary />
+                    <RadzenBadge text=Some("Second".to_string()) badge_style=BadgeStyle::Secondary />
+                    <RadzenBadge text=Some("Third".to_string())  badge_style=BadgeStyle::Info />
+                </RadzenStack>
+
+                // AlignItems
+                <h3 style="margin-top: 1rem;">"Stack — AlignItems Center"</h3>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Three badges in a bordered row. The middle badge is made taller via style. All three should be vertically centered — their midpoints aligned on the same horizontal line."
+                </p>
+                <RadzenStack
+                    orientation=Orientation::Horizontal
+                    align_items=AlignItems::Center
+                    gap=Some("1rem".to_string())
+                    base=ComponentProps { style: Some("border: 1px solid var(--rz-base-300); padding: 0.5rem;".to_string()), ..Default::default() }
+                >
+                    <RadzenBadge text=Some("A".to_string()) badge_style=BadgeStyle::Primary />
+                    <RadzenBadge text=Some("B".to_string()) badge_style=BadgeStyle::Success
+                        base=ComponentProps { style: Some("font-size: 1.5rem; padding: 0.5rem 1rem;".to_string()), ..Default::default() } />
+                    <RadzenBadge text=Some("C".to_string()) badge_style=BadgeStyle::Danger />
+                </RadzenStack>
+
+                // JustifyContent
+                <h3 style="margin-top: 1rem;">"Stack — JustifyContent SpaceBetween"</h3>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Cancel button pushed to the far left, Save button pushed to the far right, with all remaining space between them. The container spans full width."
+                </p>
+                <RadzenStack
+                    orientation=Orientation::Horizontal
+                    justify_content=JustifyContent::SpaceBetween
+                    base=ComponentProps {
+                        style: Some("width: 100%;".to_string()),
+                        ..Default::default()
+                    }
+                >
+                    <RadzenButton text="Cancel".to_string() button_style=ButtonStyle::Secondary />
+                    <RadzenButton text="Cancel".to_string() button_style=ButtonStyle::Secondary />
+                    <RadzenButton text="Save".to_string()   button_style=ButtonStyle::Primary />
+                </RadzenStack>
+
+                // Wrap
+                <h3 style="margin-top: 1rem;">"Stack — Wrap"</h3>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Five badges in a 300px-wide bordered container. Because they don't all fit on one line, they wrap: the first few appear on row 1, the rest continue on row 2."
+                </p>
+                <RadzenStack
+                    orientation=Orientation::Horizontal
+                    wrap=FlexWrap::Wrap
+                    gap=Some("0.5rem".to_string())
+                    base=ComponentProps { style: Some("max-width: 300px; border: 1px solid var(--rz-base-300); padding: 0.5rem;".to_string()), ..Default::default() }
+                >
+                    <RadzenBadge text=Some("Alpha".to_string())   badge_style=BadgeStyle::Primary />
+                    <RadzenBadge text=Some("Beta".to_string())    badge_style=BadgeStyle::Secondary />
+                    <RadzenBadge text=Some("Gamma".to_string())   badge_style=BadgeStyle::Success />
+                    <RadzenBadge text=Some("Delta".to_string())   badge_style=BadgeStyle::Danger />
+                    <RadzenBadge text=Some("Epsilon".to_string()) badge_style=BadgeStyle::Warning />
+                </RadzenStack>
+
+                // Reverse
+                <h3 style="margin-top: 1rem;">"Stack — Reverse"</h3>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Badges 1, 2, 3 are passed in that order in markup, but rendered right-to-left: 3 · 2 · 1."
+                </p>
+                <RadzenStack
+                    orientation=Orientation::Horizontal
+                    gap=Some("0.5rem".to_string())
+                    reverse=true
+                    base=ComponentProps {
+                        style: Some("width: 100%;".to_string()),
+                        ..Default::default()
+                    }
+                >       
+                    <RadzenBadge text=Some("1".to_string()) badge_style=BadgeStyle::Primary />
+                    <RadzenBadge text=Some("2".to_string()) badge_style=BadgeStyle::Secondary />
+                    <RadzenBadge text=Some("3".to_string()) badge_style=BadgeStyle::Info />
+                </RadzenStack>
+
+                // Visibility
+                <h3 style="margin-top: 1rem;">"Stack — Visibility"</h3>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "A visible green badge, then a RadzenStack with Visible=false (renders nothing — no gap, no space), then another visible blue badge. Only two badges should appear."
+                </p>
+                <RadzenStack gap=Some("0.5rem".to_string())>
+                    <RadzenBadge text=Some("Visible".to_string())              badge_style=BadgeStyle::Success />
+                    <RadzenStack
+                        orientation=Orientation::Horizontal
+                        base=ComponentProps { visible: Some(false), ..Default::default() }
+                    >
+                        <RadzenBadge text=Some("Hidden stack".to_string()) badge_style=BadgeStyle::Danger />
+                    </RadzenStack>
+                    <RadzenBadge text=Some("Also visible".to_string()) badge_style=BadgeStyle::Info />
+                </RadzenStack>
             </div>
         </ErrorBoundary>
     }

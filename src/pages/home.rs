@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use crate::components::{
     BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, IconStyle, RadzenBadge, RadzenButton,
     RadzenCard, RadzenIcon, RadzenText, Shade, TagName, TextAlign, TextStyle, Variant,
-    AlignItems, FlexWrap, JustifyContent, Orientation, RadzenStack
+    AlignItems, FlexWrap, JustifyContent, Orientation, RadzenStack,
+    NavLinkMatch, RadzenLink
 };
 
 /// Default Home Page
@@ -658,6 +659,92 @@ pub fn Home() -> impl IntoView {
                     </RadzenStack>
                     <RadzenBadge text=Some("Also visible".to_string()) badge_style=BadgeStyle::Info />
                 </RadzenStack>
+            </div>
+            <h2 style="margin-top: 2rem;">"Links — Basic"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Default link with text only."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <RadzenLink path="/" text="Home" />
+                <RadzenLink path="/about" text="About" />
+                <RadzenLink
+                    path="https://radzen.com"
+                    text="Radzen"
+                    target=Some("_blank".to_string())
+                />
+            </div>
+            
+            // ── Links — With Icon ─────────────────────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Links — With Icon"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Links with a Material icon before the label."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <RadzenLink path="/" text="Home" icon=Some("home".to_string()) />
+                <RadzenLink
+                    path="https://radzen.com"
+                    text="Visit Radzen"
+                    icon=Some("open_in_new".to_string())
+                    target=Some("_blank".to_string())
+                />
+                <RadzenLink
+                    path="/settings"
+                    text="Settings"
+                    icon=Some("settings".to_string())
+                    icon_color=Some("var(--rz-primary)".to_string())
+                />
+            </div>
+            
+            // ── Links — Disabled ──────────────────────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Links — Disabled"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Disabled links have no href, no target, and gain rz-link-disabled."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <RadzenLink path="/active"   text="Active link"   />
+                <RadzenLink path="/disabled" text="Disabled link" disabled=true />
+                <RadzenLink
+                    path="/disabled-icon"
+                    text="Disabled with icon"
+                    icon=Some("lock".to_string())
+                    disabled=true
+                />
+            </div>
+            
+            // ── Links — Match mode ────────────────────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Links — Match Mode"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Prefix match (default) vs exact match for active-state detection."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <RadzenLink path="/" text="Home (Prefix)" match_=NavLinkMatch::Prefix />
+                <RadzenLink path="/" text="Home (Exact)"  match_=NavLinkMatch::All />
+            </div>
+            
+            // ── Links — Children ──────────────────────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Links — Children (Rich Content)"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "When children are provided, text is ignored."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <RadzenLink path="/">
+                    <strong>"🏠 Go Home"</strong>
+                </RadzenLink>
+            </div>
+            
+            // ── Links — Visibility ────────────────────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Links — Visibility"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "The second link has Visible=false — it renders nothing."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <RadzenLink path="/" text="Visible" />
+                <RadzenLink
+                    path="/"
+                    text="Hidden (not rendered)"
+                    base=ComponentProps { visible: Some(false), ..Default::default() }
+                />
+                <RadzenLink path="/" text="Also visible" />
             </div>
         </ErrorBoundary>
     }

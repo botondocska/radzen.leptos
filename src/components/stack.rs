@@ -2,20 +2,22 @@
 //!
 //! # CSS class
 //! Always `"rz-stack"` (plus caller `attrs["class"]` appended last).
-//! The `rz-stack` CSS class owns `display: flex` — it must not be emitted
-//! in the inline style.
+//! The `rz-stack` CSS class owns `display: flex` in the Radzen theme SCSS.
+//! We also emit `display: flex` in the inline style so the component works
+//! regardless of whether the compiled theme includes that rule.
 //!
 //! # Inline style — `GetComponentStyle()`
-//! Only instance-specific flex properties are emitted as inline style:
+//! Mirrors `RadzenFlexComponent.GetComponentStyle()` which emits:
 //!   ```
+//!   display: flex
 //!   flex-direction: {row|column}[-reverse]
 //!   gap: {Gap}                      (only when Gap is non-empty)
 //!   align-items: {value}            (only when AlignItems != Normal)
 //!   justify-content: {value}        (only when JustifyContent != Normal)
 //!   flex-wrap: {value}              (only when Wrap != NoWrap)
 //!   ```
-//! `display: flex` is **not** emitted here — it lives in the stylesheet via
-//! `.rz-stack { display: flex; }`, matching Blazor's `GetComponentStyle()`.
+//! `display: flex` is emitted by the component, not the theme — the theme's
+//! `.rz-stack` rule only sets `box-sizing` and `gap` (the CSS variable).
 //!
 //! # Visibility
 //! Mirrors `@if (Visible)` — element is fully absent when invisible.
@@ -81,10 +83,9 @@ pub fn RadzenStack(
         )
         .finish();
 
-    // ── Inline style — GetComponentStyle() ───────────────────────────────────
-    // Blazor emits ONLY the instance-varying flex properties here.
-    // `display: flex` is NOT emitted — it is set by the `rz-stack` CSS class
-    // in the Radzen stylesheet, exactly as Blazor's GetComponentStyle() does.
+    // ── Inline style — mirrors RadzenFlexComponent.GetComponentStyle() ────────
+    // display: flex is emitted by the component itself, not by the theme CSS.
+    // The theme's .rz-stack rule only provides box-sizing and the gap variable.
     let flex_dir = match (&orientation, reverse) {
         (Orientation::Horizontal, false) => "row",
         (Orientation::Horizontal, true)  => "row-reverse",
@@ -92,7 +93,7 @@ pub fn RadzenStack(
         (Orientation::Vertical,   true)  => "column-reverse",
     };
 
-    let mut component_style = format!("flex-direction: {};", flex_dir);
+    let mut component_style = format!("display: flex; flex-direction: {};", flex_dir);
 
     // gap — only when non-empty
     if let Some(ref g) = gap {

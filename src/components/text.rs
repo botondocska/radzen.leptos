@@ -77,17 +77,20 @@ pub fn RadzenText(
     // matching Blazor's literal class-building order.
     let css_class = ClassList::create(text_style.css_class())
         .add_caller_class(
-            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+            base.attrs
+                .as_ref()
+                .and_then(|a| a.get("class"))
+                .map(String::as_str),
         )
         .add_text_align(text_align)
         .finish();
 
     // ── Attribute values ───────────────────────────────────────────────────────
-    let style     = base.style.clone().unwrap_or_default();
+    let style = base.style.clone().unwrap_or_default();
     let handle_id = handle.id.clone();
-    let enter_cb  = handle.on_mouse_enter.clone();
-    let leave_cb  = handle.on_mouse_leave.clone();
-    let ctx_cb    = handle.on_context_menu.clone();
+    let enter_cb = handle.on_mouse_enter.clone();
+    let leave_cb = handle.on_mouse_leave.clone();
+    let ctx_cb = handle.on_context_menu.clone();
 
     // ── Anchor child ───────────────────────────────────────────────────────────
     let anchor_child: Option<AnyView> = anchor.as_deref().map(|anc| {
@@ -105,7 +108,7 @@ pub fn RadzenText(
         Some(ref t) => t.clone().into_any(),
         None => match children.as_ref() {
             Some(c) => c().into_any(),
-            None    => "".into_any(),
+            None => "".into_any(),
         },
     };
 
@@ -114,12 +117,12 @@ pub fn RadzenText(
         leptos::html::custom(resolved_tag)
             .attr("style", style)
             .attr("class", css_class)
-            .attr("id",    handle_id)
-            .on(leptos::ev::mouseenter,  move |ev| enter_cb(ev))
-            .on(leptos::ev::mouseleave,  move |ev| leave_cb(ev))
+            .attr("id", handle_id)
+            .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
+            .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
             .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev))
             .child(content_child)
-            .child(anchor_child)
+            .child(anchor_child),
     )
     .into_any()
 }

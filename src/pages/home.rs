@@ -2,10 +2,10 @@ use leptos::prelude::*;
 use std::collections::HashMap;
 
 use crate::components::{
-    BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, IconStyle, RadzenBadge, RadzenButton,
-    RadzenCard, RadzenIcon, RadzenText, Shade, TagName, TextAlign, TextStyle, Variant,
-    AlignItems, FlexWrap, JustifyContent, Orientation, RadzenStack,
-    NavLinkMatch, RadzenLink, RadzenImage, ImageClickHandler, ImageClickFuture,
+    AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, FlexWrap, IconStyle,
+    ImageClickFuture, ImageClickHandler, JustifyContent, NavLinkMatch, Orientation, RadzenBadge,
+    RadzenButton, RadzenCard, RadzenIcon, RadzenImage, RadzenLink, RadzenStack, RadzenText, Shade,
+    TagName, TextAlign, TextStyle, Variant,
 };
 
 /// Default Home Page
@@ -638,7 +638,7 @@ pub fn Home() -> impl IntoView {
                         style: Some("width: 100%;".to_string()),
                         ..Default::default()
                     }
-                >       
+                >
                     <RadzenBadge text=Some("1".to_string()) badge_style=BadgeStyle::Primary />
                     <RadzenBadge text=Some("2".to_string()) badge_style=BadgeStyle::Secondary />
                     <RadzenBadge text=Some("3".to_string()) badge_style=BadgeStyle::Info />
@@ -673,7 +673,7 @@ pub fn Home() -> impl IntoView {
                     target=Some("_blank".to_string())
                 />
             </div>
-            
+
             // ── Links — With Icon ─────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — With Icon"</h2>
             <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
@@ -694,7 +694,7 @@ pub fn Home() -> impl IntoView {
                     icon_color=Some("var(--rz-primary)".to_string())
                 />
             </div>
-            
+
             // ── Links — Disabled ──────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — Disabled"</h2>
             <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
@@ -710,7 +710,7 @@ pub fn Home() -> impl IntoView {
                     disabled=true
                 />
             </div>
-            
+
             // ── Links — Match mode ────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — Match Mode"</h2>
             <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
@@ -720,7 +720,7 @@ pub fn Home() -> impl IntoView {
                 <RadzenLink path="/" text="Home (Prefix)" match_=NavLinkMatch::Prefix />
                 <RadzenLink path="/" text="Home (Exact)"  match_=NavLinkMatch::All />
             </div>
-            
+
             // ── Links — Children ──────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — Children (Rich Content)"</h2>
             <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
@@ -731,7 +731,7 @@ pub fn Home() -> impl IntoView {
                     <strong>"🏠 Go Home"</strong>
                 </RadzenLink>
             </div>
-            
+
             // ── Links — Visibility ────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — Visibility"</h2>
             <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">

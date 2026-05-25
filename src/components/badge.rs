@@ -78,7 +78,10 @@ pub fn RadzenBadge(
         .add_shade(shade)
         .add("rz-badge-pill", is_pill)
         .add_caller_class(
-            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+            base.attrs
+                .as_ref()
+                .and_then(|a| a.get("class"))
+                .map(String::as_str),
         )
         .finish();
 
@@ -86,11 +89,11 @@ pub fn RadzenBadge(
     let style = base.style.clone().unwrap_or_default();
 
     // ── Event handlers ────────────────────────────────────────────────────────
-    let enter_cb  = handle.on_mouse_enter.clone();
-    let leave_cb  = handle.on_mouse_leave.clone();
-    let ctx_cb    = handle.on_context_menu.clone();
+    let enter_cb = handle.on_mouse_enter.clone();
+    let leave_cb = handle.on_mouse_leave.clone();
+    let ctx_cb = handle.on_context_menu.clone();
     let handle_id = handle.id.clone();
-    let visible   = handle.visible;
+    let visible = handle.visible;
 
     view! {
         <Show when=move || visible.get()>

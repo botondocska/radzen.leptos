@@ -53,7 +53,10 @@ pub fn RadzenIcon(
             cl = cl.add_class(format!("rzi-{}", style.as_str()));
         }
         cl.add_caller_class(
-            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+            base.attrs
+                .as_ref()
+                .and_then(|a| a.get("class"))
+                .map(String::as_str),
         )
         .finish()
     };
@@ -70,11 +73,11 @@ pub fn RadzenIcon(
     };
 
     // ── Event handlers ─────────────────────────────────────────────────────────
-    let enter_cb  = handle.on_mouse_enter.clone();
-    let leave_cb  = handle.on_mouse_leave.clone();
-    let ctx_cb    = handle.on_context_menu.clone();
+    let enter_cb = handle.on_mouse_enter.clone();
+    let leave_cb = handle.on_mouse_leave.clone();
+    let ctx_cb = handle.on_context_menu.clone();
     let handle_id = handle.id.clone();
-    let visible   = handle.visible;
+    let visible = handle.visible;
 
     view! {
         <Show when=move || visible.get()>

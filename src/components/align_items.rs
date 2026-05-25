@@ -35,10 +35,10 @@ impl AlignItems {
     /// or `None` for [`AlignItems::Normal`] (browser default — not emitted).
     pub fn css_value(&self) -> Option<&'static str> {
         match self {
-            AlignItems::Normal  => None,
-            AlignItems::Center  => Some("center"),
-            AlignItems::Start   => Some("flex-start"),
-            AlignItems::End     => Some("flex-end"),
+            AlignItems::Normal => None,
+            AlignItems::Center => Some("center"),
+            AlignItems::Start => Some("flex-start"),
+            AlignItems::End => Some("flex-end"),
             AlignItems::Stretch => Some("stretch"),
         }
     }

@@ -42,16 +42,19 @@ pub fn RadzenCard(
     let css_class = ClassList::create("rz-card")
         .add_variant(variant)
         .add_caller_class(
-            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+            base.attrs
+                .as_ref()
+                .and_then(|a| a.get("class"))
+                .map(String::as_str),
         )
         .finish();
 
-    let style     = base.style.clone().unwrap_or_default();
-    let enter_cb  = handle.on_mouse_enter.clone();
-    let leave_cb  = handle.on_mouse_leave.clone();
-    let ctx_cb    = handle.on_context_menu.clone();
+    let style = base.style.clone().unwrap_or_default();
+    let enter_cb = handle.on_mouse_enter.clone();
+    let leave_cb = handle.on_mouse_leave.clone();
+    let ctx_cb = handle.on_context_menu.clone();
     let handle_id = handle.id.clone();
-    let visible   = handle.visible;
+    let visible = handle.visible;
 
     view! {
         <Show when=move || visible.get()>

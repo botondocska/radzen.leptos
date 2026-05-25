@@ -38,12 +38,12 @@ impl TextAlign {
     /// the class is only appended when the condition is true.
     pub fn css_class(&self) -> Option<&'static str> {
         match self {
-            TextAlign::Center     => Some("rz-text-align-center"),
-            TextAlign::End        => Some("rz-text-align-end"),
-            TextAlign::Justify    => Some("rz-text-align-justify"),
-            TextAlign::Start      => Some("rz-text-align-start"),
-            TextAlign::Left       => None,
-            TextAlign::Right      => Some("rz-text-align-right"),
+            TextAlign::Center => Some("rz-text-align-center"),
+            TextAlign::End => Some("rz-text-align-end"),
+            TextAlign::Justify => Some("rz-text-align-justify"),
+            TextAlign::Start => Some("rz-text-align-start"),
+            TextAlign::Left => None,
+            TextAlign::Right => Some("rz-text-align-right"),
             TextAlign::JustifyAll => Some("rz-text-align-justify-all"),
         }
     }

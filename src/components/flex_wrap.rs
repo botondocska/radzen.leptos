@@ -27,8 +27,8 @@ impl FlexWrap {
     /// or `None` for [`FlexWrap::NoWrap`] (browser default — not emitted).
     pub fn css_value(&self) -> Option<&'static str> {
         match self {
-            FlexWrap::NoWrap      => None,
-            FlexWrap::Wrap        => Some("wrap"),
+            FlexWrap::NoWrap => None,
+            FlexWrap::Wrap => Some("wrap"),
             FlexWrap::WrapReverse => Some("wrap-reverse"),
         }
     }

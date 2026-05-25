@@ -112,10 +112,9 @@ impl TextStyle {
             TextStyle::DisplayH3 | TextStyle::H3 => "h3",
             TextStyle::DisplayH4 | TextStyle::H4 => "h4",
             TextStyle::DisplayH5 | TextStyle::H5 => "h5",
-            TextStyle::DisplayH6
-            | TextStyle::H6
-            | TextStyle::Subtitle1
-            | TextStyle::Subtitle2 => "h6",
+            TextStyle::DisplayH6 | TextStyle::H6 | TextStyle::Subtitle1 | TextStyle::Subtitle2 => {
+                "h6"
+            }
             TextStyle::Body1 | TextStyle::Body2 => "p",
             TextStyle::Button | TextStyle::Caption | TextStyle::Overline => "span",
         }

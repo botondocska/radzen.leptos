@@ -137,20 +137,23 @@ pub fn RadzenButton(
             text.trim().is_empty() && icon.is_some(),
         )
         .add_caller_class(
-            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+            base.attrs
+                .as_ref()
+                .and_then(|a| a.get("class"))
+                .map(String::as_str),
         )
         .finish();
 
     let button_type_str = button_type.as_str();
     let style = base.style.clone().unwrap_or_default();
 
-    let text_sig          = RwSignal::new(text);
-    let icon_sig          = RwSignal::new(icon);
-    let icon_color_sig    = RwSignal::new(icon_color);
-    let image_sig         = RwSignal::new(image);
-    let image_alt_sig     = RwSignal::new(image_alt_text);
-    let busy_text_sig     = RwSignal::new(busy_text);
-    let is_busy_sig       = RwSignal::new(is_busy);
+    let text_sig = RwSignal::new(text);
+    let icon_sig = RwSignal::new(icon);
+    let icon_color_sig = RwSignal::new(icon_color);
+    let image_sig = RwSignal::new(image);
+    let image_alt_sig = RwSignal::new(image_alt_text);
+    let busy_text_sig = RwSignal::new(busy_text);
+    let is_busy_sig = RwSignal::new(is_busy);
 
     // ── Re-entrancy guard ─────────────────────────────────────────────────────
     let clicking = RwSignal::new(false);
@@ -176,10 +179,10 @@ pub fn RadzenButton(
         }
     };
 
-    let handle_mouse_enter  = handle.on_mouse_enter.clone();
-    let handle_mouse_leave  = handle.on_mouse_leave.clone();
+    let handle_mouse_enter = handle.on_mouse_enter.clone();
+    let handle_mouse_leave = handle.on_mouse_leave.clone();
     let handle_context_menu = handle.on_context_menu.clone();
-    let handle_id           = handle.id;
+    let handle_id = handle.id;
 
     // ── Visibility — mirrors `@if (Visible)` ──────────────────────────────────
     // Early-return (same pattern as RadzenStack / RadzenText) avoids the
@@ -191,15 +194,15 @@ pub fn RadzenButton(
 
     Some(
         leptos::html::button()
-            .attr("id",       handle_id)
-            .attr("type",     button_type_str)
-            .attr("class",    css_class)
-            .attr("style",    style)
+            .attr("id", handle_id)
+            .attr("type", button_type_str)
+            .attr("class", css_class)
+            .attr("style", style)
             .attr("disabled", is_disabled)
             .attr("tabindex", if disabled { -1 } else { tab_index })
-            .on(leptos::ev::click,       on_button_click)
-            .on(leptos::ev::mouseenter,  move |ev| handle_mouse_enter(ev))
-            .on(leptos::ev::mouseleave,  move |ev| handle_mouse_leave(ev))
+            .on(leptos::ev::click, on_button_click)
+            .on(leptos::ev::mouseenter, move |ev| handle_mouse_enter(ev))
+            .on(leptos::ev::mouseleave, move |ev| handle_mouse_leave(ev))
             .on(leptos::ev::contextmenu, move |ev| handle_context_menu(ev))
             .child(
                 leptos::html::span()
@@ -257,8 +260,8 @@ pub fn RadzenButton(
                                 })
                             }}
                         </Show>
-                    })
-            )
+                    }),
+            ),
     )
     .into_any()
 }

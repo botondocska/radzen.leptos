@@ -185,29 +185,29 @@ pub fn RadzenImage(
     };
 
     // ── Base event handlers ───────────────────────────────────────────────────
-    let handle_mouse_enter  = handle.on_mouse_enter.clone();
-    let handle_mouse_leave  = handle.on_mouse_leave.clone();
+    let handle_mouse_enter = handle.on_mouse_enter.clone();
+    let handle_mouse_leave = handle.on_mouse_leave.clone();
     let handle_context_menu = handle.on_context_menu.clone();
-    let handle_id           = handle.id;
+    let handle_id = handle.id;
 
     // ── Render ────────────────────────────────────────────────────────────────
     // Mirrors Blazor's single `<img>` element with conditional role/tabindex.
     Some(
         leptos::html::img()
-            .attr("id",    handle_id)
-            .attr("src",   path.unwrap_or_default())
-            .attr("alt",   alt_text)
+            .attr("id", handle_id)
+            .attr("src", path.unwrap_or_default())
+            .attr("alt", alt_text)
             .attr("class", css_class)
             .attr("style", style)
             // role="button" and tabindex="0" — only when click delegate present.
             // Mirrors: if (Click.HasDelegate) { imgAttributes["role"] = "button"; imgAttributes["tabindex"] = "0"; }
-            .attr("role",     has_click.then_some("button"))
+            .attr("role", has_click.then_some("button"))
             .attr("tabindex", has_click.then_some("0"))
-            .on(leptos::ev::click,       on_img_click)
-            .on(leptos::ev::keydown,     on_key_down)
-            .on(leptos::ev::mouseenter,  move |ev| handle_mouse_enter(ev))
-            .on(leptos::ev::mouseleave,  move |ev| handle_mouse_leave(ev))
-            .on(leptos::ev::contextmenu, move |ev| handle_context_menu(ev))
+            .on(leptos::ev::click, on_img_click)
+            .on(leptos::ev::keydown, on_key_down)
+            .on(leptos::ev::mouseenter, move |ev| handle_mouse_enter(ev))
+            .on(leptos::ev::mouseleave, move |ev| handle_mouse_leave(ev))
+            .on(leptos::ev::contextmenu, move |ev| handle_context_menu(ev)),
     )
     .into_any()
 }

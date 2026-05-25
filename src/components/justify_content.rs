@@ -55,16 +55,16 @@ impl JustifyContent {
     /// or `None` for [`JustifyContent::Normal`] (browser default — not emitted).
     pub fn css_value(&self) -> Option<&'static str> {
         match self {
-            JustifyContent::Normal       => None,
-            JustifyContent::Center       => Some("center"),
-            JustifyContent::Start        => Some("flex-start"),
-            JustifyContent::End          => Some("flex-end"),
-            JustifyContent::Left         => Some("left"),
-            JustifyContent::Right        => Some("right"),
+            JustifyContent::Normal => None,
+            JustifyContent::Center => Some("center"),
+            JustifyContent::Start => Some("flex-start"),
+            JustifyContent::End => Some("flex-end"),
+            JustifyContent::Left => Some("left"),
+            JustifyContent::Right => Some("right"),
             JustifyContent::SpaceBetween => Some("space-between"),
-            JustifyContent::SpaceAround  => Some("space-around"),
-            JustifyContent::SpaceEvenly  => Some("space-evenly"),
-            JustifyContent::Stretch      => Some("stretch"),
+            JustifyContent::SpaceAround => Some("space-around"),
+            JustifyContent::SpaceEvenly => Some("space-evenly"),
+            JustifyContent::Stretch => Some("stretch"),
         }
     }
 }

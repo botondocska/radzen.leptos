@@ -131,15 +131,18 @@ pub fn RadzenLink(
     let css_class = ClassList::create("rz-link")
         .add("rz-link-disabled", disabled)
         .add_caller_class(
-            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+            base.attrs
+                .as_ref()
+                .and_then(|a| a.get("class"))
+                .map(String::as_str),
         )
         .finish();
 
-    let style     = base.style.clone().unwrap_or_default();
+    let style = base.style.clone().unwrap_or_default();
     let handle_id = handle.id.clone();
-    let enter_cb  = handle.on_mouse_enter.clone();
-    let leave_cb  = handle.on_mouse_leave.clone();
-    let ctx_cb    = handle.on_context_menu.clone();
+    let enter_cb = handle.on_mouse_enter.clone();
+    let leave_cb = handle.on_mouse_leave.clone();
+    let ctx_cb = handle.on_context_menu.clone();
 
     // ── exact flag ────────────────────────────────────────────────────────────
     let exact = matches!(match_, NavLinkMatch::All);
@@ -170,7 +173,7 @@ pub fn RadzenLink(
     // Text / children — mirrors: <span class="rz-link-text">@(ChildContent ?? Text)</span>
     let text_child: AnyView = match children.as_ref() {
         Some(c) => c().into_any(),
-        None    => text.clone().into_any(),
+        None => text.clone().into_any(),
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -180,62 +183,58 @@ pub fn RadzenLink(
     //   enabled  → <A> (leptos_router anchor, sets aria-current when active)
     if disabled {
         // Plain <a> with no href — clicking does nothing, matches Blazor behaviour.
-        Some(
-            view! {
-                <a
-                    id=handle_id
-                    class=css_class
-                    style=style
-                    on:mouseenter={
-                        let cb = enter_cb.clone();
-                        move |ev| cb(ev)
-                    }
-                    on:mouseleave={
-                        let cb = leave_cb.clone();
-                        move |ev| cb(ev)
-                    }
-                    on:contextmenu={
-                        let cb = ctx_cb.clone();
-                        move |ev| cb(ev)
-                    }
-                >
-                    {icon_child}
-                    {image_child}
-                    <span class="rz-link-text">{text_child}</span>
-                </a>
-            }
-        )
+        Some(view! {
+            <a
+                id=handle_id
+                class=css_class
+                style=style
+                on:mouseenter={
+                    let cb = enter_cb.clone();
+                    move |ev| cb(ev)
+                }
+                on:mouseleave={
+                    let cb = leave_cb.clone();
+                    move |ev| cb(ev)
+                }
+                on:contextmenu={
+                    let cb = ctx_cb.clone();
+                    move |ev| cb(ev)
+                }
+            >
+                {icon_child}
+                {image_child}
+                <span class="rz-link-text">{text_child}</span>
+            </a>
+        })
         .into_any()
     } else {
         // Router-enhanced <A>: resolves relative routes, sets aria-current="page".
-        Some(
-            view! {
-                <A
-                    href=path
-                    target=target.unwrap_or_default()
-                    exact=exact
-                    attr:id=handle_id
-                    attr:class=css_class
-                    attr:style=style
-                    on:mouseenter={
-                        let cb = enter_cb.clone();
-                        move |ev| cb(ev)
-                    }
-                    on:mouseleave={
-                        let cb = leave_cb.clone();
-                        move |ev| cb(ev)
-                    }
-                    on:contextmenu={
-                        let cb = ctx_cb.clone();
-                        move |ev| cb(ev)
-                    }
-                >
-                    {icon_child}
-                    {image_child}
-                    <span class="rz-link-text">{text_child}</span>
-                </A>
-            }
-        )
+        Some(view! {
+            <A
+                href=path
+                target=target.unwrap_or_default()
+                exact=exact
+                attr:id=handle_id
+                attr:class=css_class
+                attr:style=style
+                on:mouseenter={
+                    let cb = enter_cb.clone();
+                    move |ev| cb(ev)
+                }
+                on:mouseleave={
+                    let cb = leave_cb.clone();
+                    move |ev| cb(ev)
+                }
+                on:contextmenu={
+                    let cb = ctx_cb.clone();
+                    move |ev| cb(ev)
+                }
+            >
+                {icon_child}
+                {image_child}
+                <span class="rz-link-text">{text_child}</span>
+            </A>
+        })
         .into_any()
     }
 }

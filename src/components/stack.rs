@@ -79,7 +79,10 @@ pub fn RadzenStack(
     // GetCssClass() appends caller attrs["class"] last.
     let css_class = ClassList::create("rz-stack")
         .add_caller_class(
-            base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str),
+            base.attrs
+                .as_ref()
+                .and_then(|a| a.get("class"))
+                .map(String::as_str),
         )
         .finish();
 
@@ -88,9 +91,9 @@ pub fn RadzenStack(
     // The theme's .rz-stack rule only provides box-sizing and the gap variable.
     let flex_dir = match (&orientation, reverse) {
         (Orientation::Horizontal, false) => "row",
-        (Orientation::Horizontal, true)  => "row-reverse",
-        (Orientation::Vertical,   false) => "column",
-        (Orientation::Vertical,   true)  => "column-reverse",
+        (Orientation::Horizontal, true) => "row-reverse",
+        (Orientation::Vertical, false) => "column",
+        (Orientation::Vertical, true) => "column-reverse",
     };
 
     let mut component_style = format!("display: flex; flex-direction: {};", flex_dir);
@@ -126,20 +129,20 @@ pub fn RadzenStack(
     };
 
     // ── Event handlers ────────────────────────────────────────────────────────
-    let enter_cb  = handle.on_mouse_enter.clone();
-    let leave_cb  = handle.on_mouse_leave.clone();
-    let ctx_cb    = handle.on_context_menu.clone();
+    let enter_cb = handle.on_mouse_enter.clone();
+    let leave_cb = handle.on_mouse_leave.clone();
+    let ctx_cb = handle.on_context_menu.clone();
     let handle_id = handle.id.clone();
 
     Some(
         leptos::html::div()
-            .attr("style",  style)
-            .attr("class",  css_class)
-            .attr("id",     handle_id)
-            .on(leptos::ev::mouseenter,  move |ev| enter_cb(ev))
-            .on(leptos::ev::mouseleave,  move |ev| leave_cb(ev))
+            .attr("style", style)
+            .attr("class", css_class)
+            .attr("id", handle_id)
+            .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
+            .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
             .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev))
-            .child(children())
+            .child(children()),
     )
     .into_any()
 }

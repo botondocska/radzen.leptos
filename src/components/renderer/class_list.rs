@@ -21,7 +21,9 @@
 //! Use `add_caller_class(Option<&str>)` as the **final** call in the chain
 //! to reproduce this ordering exactly.
 
-use crate::components::{BadgeStyle, ButtonSize, ButtonStyle, IconStyle, Shade, TextAlign, TextStyle, Variant};
+use crate::components::{
+    BadgeStyle, ButtonSize, ButtonStyle, IconStyle, Shade, TextAlign, TextStyle, Variant,
+};
 use std::collections::HashMap;
 
 /// Fluent builder for CSS class strings.
@@ -35,7 +37,9 @@ impl ClassList {
 
     /// Start a new empty builder.
     pub fn new() -> Self {
-        Self { classes: Vec::new() }
+        Self {
+            classes: Vec::new(),
+        }
     }
 
     /// Start a builder with a root class — mirrors `ClassList.Create(root)`.
@@ -107,9 +111,9 @@ impl ClassList {
     pub fn add_button_size(self, size: ButtonSize) -> Self {
         let class = match size {
             ButtonSize::ExtraSmall => "rz-button-xs",
-            ButtonSize::Small      => "rz-button-sm",
-            ButtonSize::Medium     => "rz-button-md",
-            ButtonSize::Large      => "rz-button-lg",
+            ButtonSize::Small => "rz-button-sm",
+            ButtonSize::Medium => "rz-button-md",
+            ButtonSize::Large => "rz-button-lg",
         };
         self.add_class(class)
     }
@@ -117,10 +121,10 @@ impl ClassList {
     /// Add variant class — mirrors Blazor `ClassList.AddVariant`.
     pub fn add_variant(self, variant: Variant) -> Self {
         let class = match variant {
-            Variant::Filled   => "rz-variant-filled",
-            Variant::Flat     => "rz-variant-flat",
+            Variant::Filled => "rz-variant-filled",
+            Variant::Flat => "rz-variant-flat",
             Variant::Outlined => "rz-variant-outlined",
-            Variant::Text     => "rz-variant-text",
+            Variant::Text => "rz-variant-text",
         };
         self.add_class(class)
     }
@@ -128,15 +132,15 @@ impl ClassList {
     /// Add button style (color) class.
     pub fn add_button_style(self, style: ButtonStyle) -> Self {
         let class = match style {
-            ButtonStyle::Primary   => "rz-primary",
+            ButtonStyle::Primary => "rz-primary",
             ButtonStyle::Secondary => "rz-secondary",
-            ButtonStyle::Light     => "rz-light",
-            ButtonStyle::Base      => "rz-base",
-            ButtonStyle::Dark      => "rz-dark",
-            ButtonStyle::Success   => "rz-success",
-            ButtonStyle::Warning   => "rz-warning",
-            ButtonStyle::Danger    => "rz-danger",
-            ButtonStyle::Info      => "rz-info",
+            ButtonStyle::Light => "rz-light",
+            ButtonStyle::Base => "rz-base",
+            ButtonStyle::Dark => "rz-dark",
+            ButtonStyle::Success => "rz-success",
+            ButtonStyle::Warning => "rz-warning",
+            ButtonStyle::Danger => "rz-danger",
+            ButtonStyle::Info => "rz-info",
         };
         self.add_class(class)
     }
@@ -151,15 +155,15 @@ impl ClassList {
     /// Add badge style class.
     pub fn add_badge_style(self, style: BadgeStyle) -> Self {
         let class = match style {
-            BadgeStyle::Primary   => "rz-badge-primary",
+            BadgeStyle::Primary => "rz-badge-primary",
             BadgeStyle::Secondary => "rz-badge-secondary",
-            BadgeStyle::Light     => "rz-badge-light",
-            BadgeStyle::Base      => "rz-badge-base",
-            BadgeStyle::Dark      => "rz-badge-dark",
-            BadgeStyle::Success   => "rz-badge-success",
-            BadgeStyle::Warning   => "rz-badge-warning",
-            BadgeStyle::Danger    => "rz-badge-danger",
-            BadgeStyle::Info      => "rz-badge-info",
+            BadgeStyle::Light => "rz-badge-light",
+            BadgeStyle::Base => "rz-badge-base",
+            BadgeStyle::Dark => "rz-badge-dark",
+            BadgeStyle::Success => "rz-badge-success",
+            BadgeStyle::Warning => "rz-badge-warning",
+            BadgeStyle::Danger => "rz-badge-danger",
+            BadgeStyle::Info => "rz-badge-info",
         };
         self.add_class(class)
     }
@@ -184,7 +188,7 @@ impl ClassList {
     pub fn add_text_align(self, align: TextAlign) -> Self {
         match align.css_class() {
             Some(class) => self.add_class(class),
-            None        => self,
+            None => self,
         }
     }
 
@@ -235,7 +239,10 @@ mod tests {
 
     #[test]
     fn test_add_multiple_classes() {
-        let css = ClassList::new().add_class("btn").add_class("btn-primary").finish();
+        let css = ClassList::new()
+            .add_class("btn")
+            .add_class("btn-primary")
+            .finish();
         assert_eq!(css, "btn btn-primary");
     }
 
@@ -263,13 +270,17 @@ mod tests {
 
     #[test]
     fn test_add_button_size_extra_small() {
-        let css = ClassList::new().add_button_size(ButtonSize::ExtraSmall).finish();
+        let css = ClassList::new()
+            .add_button_size(ButtonSize::ExtraSmall)
+            .finish();
         assert_eq!(css, "rz-button-xs");
     }
 
     #[test]
     fn test_add_button_style() {
-        let css = ClassList::new().add_button_style(ButtonStyle::Danger).finish();
+        let css = ClassList::new()
+            .add_button_style(ButtonStyle::Danger)
+            .finish();
         assert_eq!(css, "rz-danger");
     }
 
@@ -352,7 +363,10 @@ mod tests {
             .add_disabled(false)
             .add_shade(Shade::Default)
             .finish();
-        assert_eq!(css, "btn rz-button-md rz-primary rz-variant-filled rz-shade-default");
+        assert_eq!(
+            css,
+            "btn rz-button-md rz-primary rz-variant-filled rz-shade-default"
+        );
     }
 
     #[test]
@@ -365,7 +379,10 @@ mod tests {
     fn test_add_from_attrs() {
         let mut attrs = HashMap::new();
         attrs.insert("class".to_string(), "custom-class".to_string());
-        let css = ClassList::new().add_class("btn").add_from_attrs(&attrs).finish();
+        let css = ClassList::new()
+            .add_class("btn")
+            .add_from_attrs(&attrs)
+            .finish();
         assert_eq!(css, "btn custom-class");
     }
 
@@ -394,7 +411,9 @@ mod tests {
     #[test]
     fn text_style_subtitle1_class() {
         assert_eq!(
-            ClassList::new().add_text_style(TextStyle::Subtitle1).finish(),
+            ClassList::new()
+                .add_text_style(TextStyle::Subtitle1)
+                .finish(),
             "rz-text-subtitle1"
         );
     }
@@ -402,7 +421,9 @@ mod tests {
     #[test]
     fn text_style_display_h1_class() {
         assert_eq!(
-            ClassList::new().add_text_style(TextStyle::DisplayH1).finish(),
+            ClassList::new()
+                .add_text_style(TextStyle::DisplayH1)
+                .finish(),
             "rz-text-display-h1"
         );
     }
@@ -410,7 +431,9 @@ mod tests {
     #[test]
     fn text_style_overline_class() {
         assert_eq!(
-            ClassList::new().add_text_style(TextStyle::Overline).finish(),
+            ClassList::new()
+                .add_text_style(TextStyle::Overline)
+                .finish(),
             "rz-text-overline"
         );
     }
@@ -427,13 +450,19 @@ mod tests {
     /// All seven TextAlign values.
     #[test]
     fn text_align_all_variants() {
-        assert_eq!(TextAlign::Center.css_class(),     Some("rz-text-align-center"));
-        assert_eq!(TextAlign::End.css_class(),        Some("rz-text-align-end"));
-        assert_eq!(TextAlign::Justify.css_class(),    Some("rz-text-align-justify"));
-        assert_eq!(TextAlign::Start.css_class(),      Some("rz-text-align-start"));
-        assert_eq!(TextAlign::Left.css_class(),       None);
-        assert_eq!(TextAlign::Right.css_class(),      Some("rz-text-align-right"));
-        assert_eq!(TextAlign::JustifyAll.css_class(), Some("rz-text-align-justify-all"));
+        assert_eq!(TextAlign::Center.css_class(), Some("rz-text-align-center"));
+        assert_eq!(TextAlign::End.css_class(), Some("rz-text-align-end"));
+        assert_eq!(
+            TextAlign::Justify.css_class(),
+            Some("rz-text-align-justify")
+        );
+        assert_eq!(TextAlign::Start.css_class(), Some("rz-text-align-start"));
+        assert_eq!(TextAlign::Left.css_class(), None);
+        assert_eq!(TextAlign::Right.css_class(), Some("rz-text-align-right"));
+        assert_eq!(
+            TextAlign::JustifyAll.css_class(),
+            Some("rz-text-align-justify-all")
+        );
     }
 
     /// All 19 TextStyle CSS classes.
@@ -446,19 +475,19 @@ mod tests {
             (TextStyle::DisplayH4, "rz-text-display-h4"),
             (TextStyle::DisplayH5, "rz-text-display-h5"),
             (TextStyle::DisplayH6, "rz-text-display-h6"),
-            (TextStyle::H1,        "rz-text-h1"),
-            (TextStyle::H2,        "rz-text-h2"),
-            (TextStyle::H3,        "rz-text-h3"),
-            (TextStyle::H4,        "rz-text-h4"),
-            (TextStyle::H5,        "rz-text-h5"),
-            (TextStyle::H6,        "rz-text-h6"),
+            (TextStyle::H1, "rz-text-h1"),
+            (TextStyle::H2, "rz-text-h2"),
+            (TextStyle::H3, "rz-text-h3"),
+            (TextStyle::H4, "rz-text-h4"),
+            (TextStyle::H5, "rz-text-h5"),
+            (TextStyle::H6, "rz-text-h6"),
             (TextStyle::Subtitle1, "rz-text-subtitle1"),
             (TextStyle::Subtitle2, "rz-text-subtitle2"),
-            (TextStyle::Body1,     "rz-text-body1"),
-            (TextStyle::Body2,     "rz-text-body2"),
-            (TextStyle::Button,    "rz-text-button"),
-            (TextStyle::Caption,   "rz-text-caption"),
-            (TextStyle::Overline,  "rz-text-overline"),
+            (TextStyle::Body1, "rz-text-body1"),
+            (TextStyle::Body2, "rz-text-body2"),
+            (TextStyle::Button, "rz-text-button"),
+            (TextStyle::Caption, "rz-text-caption"),
+            (TextStyle::Overline, "rz-text-overline"),
         ];
         for (style, expected) in cases {
             assert_eq!(style.css_class(), expected, "failed for {:?}", style);
@@ -469,29 +498,29 @@ mod tests {
     fn tag_name_auto_is_none() {
         use crate::components::TagName;
         assert_eq!(TagName::Auto.as_str(), None);
-        assert_eq!(TagName::Div.as_str(),    Some("div"));
-        assert_eq!(TagName::Span.as_str(),   Some("span"));
-        assert_eq!(TagName::P.as_str(),      Some("p"));
-        assert_eq!(TagName::H1.as_str(),     Some("h1"));
-        assert_eq!(TagName::H6.as_str(),     Some("h6"));
-        assert_eq!(TagName::A.as_str(),      Some("a"));
+        assert_eq!(TagName::Div.as_str(), Some("div"));
+        assert_eq!(TagName::Span.as_str(), Some("span"));
+        assert_eq!(TagName::P.as_str(), Some("p"));
+        assert_eq!(TagName::H1.as_str(), Some("h1"));
+        assert_eq!(TagName::H6.as_str(), Some("h6"));
+        assert_eq!(TagName::A.as_str(), Some("a"));
         assert_eq!(TagName::Button.as_str(), Some("button"));
-        assert_eq!(TagName::Pre.as_str(),    Some("pre"));
+        assert_eq!(TagName::Pre.as_str(), Some("pre"));
     }
 
     #[test]
     fn text_style_auto_tags() {
         assert_eq!(TextStyle::DisplayH1.auto_tag(), "h1");
         assert_eq!(TextStyle::DisplayH6.auto_tag(), "h6");
-        assert_eq!(TextStyle::H1.auto_tag(),        "h1");
-        assert_eq!(TextStyle::H6.auto_tag(),        "h6");
+        assert_eq!(TextStyle::H1.auto_tag(), "h1");
+        assert_eq!(TextStyle::H6.auto_tag(), "h6");
         assert_eq!(TextStyle::Subtitle1.auto_tag(), "h6");
         assert_eq!(TextStyle::Subtitle2.auto_tag(), "h6");
-        assert_eq!(TextStyle::Body1.auto_tag(),     "p");
-        assert_eq!(TextStyle::Body2.auto_tag(),     "p");
-        assert_eq!(TextStyle::Button.auto_tag(),    "span");
-        assert_eq!(TextStyle::Caption.auto_tag(),   "span");
-        assert_eq!(TextStyle::Overline.auto_tag(),  "span");
+        assert_eq!(TextStyle::Body1.auto_tag(), "p");
+        assert_eq!(TextStyle::Body2.auto_tag(), "p");
+        assert_eq!(TextStyle::Button.auto_tag(), "span");
+        assert_eq!(TextStyle::Caption.auto_tag(), "span");
+        assert_eq!(TextStyle::Overline.auto_tag(), "span");
     }
 
     // ── Shade::css_class canonical values ────────────────────────────────────
@@ -499,9 +528,9 @@ mod tests {
     #[test]
     fn shade_css_class_all_variants() {
         assert_eq!(Shade::Lighter.css_class(), "rz-shade-lighter");
-        assert_eq!(Shade::Light.css_class(),   "rz-shade-light");
+        assert_eq!(Shade::Light.css_class(), "rz-shade-light");
         assert_eq!(Shade::Default.css_class(), "rz-shade-default");
-        assert_eq!(Shade::Dark.css_class(),    "rz-shade-dark");
-        assert_eq!(Shade::Darker.css_class(),  "rz-shade-darker");
+        assert_eq!(Shade::Dark.css_class(), "rz-shade-dark");
+        assert_eq!(Shade::Darker.css_class(), "rz-shade-darker");
     }
 }

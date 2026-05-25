@@ -30,10 +30,10 @@ impl Shade {
     pub fn css_class(&self) -> &'static str {
         match self {
             Shade::Lighter => "rz-shade-lighter",
-            Shade::Light   => "rz-shade-light",
+            Shade::Light => "rz-shade-light",
             Shade::Default => "rz-shade-default",
-            Shade::Dark    => "rz-shade-dark",
-            Shade::Darker  => "rz-shade-darker",
+            Shade::Dark => "rz-shade-dark",
+            Shade::Darker => "rz-shade-darker",
         }
     }
 
@@ -46,10 +46,10 @@ impl Shade {
     pub fn suffix(&self) -> &'static str {
         match self {
             Shade::Lighter => "lighter",
-            Shade::Light   => "light",
+            Shade::Light => "light",
             Shade::Default => "DEFAULT",
-            Shade::Dark    => "dark",
-            Shade::Darker  => "darker",
+            Shade::Dark => "dark",
+            Shade::Darker => "darker",
         }
     }
 }

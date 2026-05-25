@@ -5,7 +5,7 @@ use crate::components::{
     BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, IconStyle, RadzenBadge, RadzenButton,
     RadzenCard, RadzenIcon, RadzenText, Shade, TagName, TextAlign, TextStyle, Variant,
     AlignItems, FlexWrap, JustifyContent, Orientation, RadzenStack,
-    NavLinkMatch, RadzenLink
+    NavLinkMatch, RadzenLink, RadzenImage, ImageClickHandler, ImageClickFuture,
 };
 
 /// Default Home Page
@@ -745,6 +745,297 @@ pub fn Home() -> impl IntoView {
                     base=ComponentProps { visible: Some(false), ..Default::default() }
                 />
                 <RadzenLink path="/" text="Also visible" />
+            </div>
+            // ══════════════════════════════════════════════════════════════
+            // RadzenImage examples
+            // Tests every prop: path, alternate_text, attrs["alt"] merge,
+            // style, on_click (role/tabindex), keyboard Enter/Space,
+            // attrs["class"], visibility, base64 data URL, external URL.
+            // ══════════════════════════════════════════════════════════════
+
+            // ── Image — Basic ─────────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Image — Basic"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Minimal usage: path only. No click handler, no extra attrs. "
+                "Alt defaults to \"image\"."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/basic/120/80".to_string())
+                />
+            </div>
+
+            // ── Image — Alternate Text ────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Image — Alternate Text"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Custom alternate_text prop. Inspect the DOM: alt should be "
+                "\"A scenic mountain landscape\"."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/alttext/120/80".to_string())
+                    alternate_text="A scenic mountain landscape".to_string()
+                />
+            </div>
+
+            // ── Image — attrs["alt"] Merge (GetAlternateText) ─────────────
+            <h2 style="margin-top: 2rem;">"Image — Alt Attribute Merge"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "When base.attrs contains \"alt\", Blazor's GetAlternateText() "
+                "appends it: \"{alternate_text} {attrs[alt]}\". "
+                "Inspect DOM: alt should be \"Photo (uploaded by user)\"."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/altmerge/120/80".to_string())
+                    alternate_text="Photo".to_string()
+                    base=ComponentProps {
+                        attrs: Some(HashMap::from([
+                            ("alt".to_string(), "(uploaded by user)".to_string()),
+                        ])),
+                        ..Default::default()
+                    }
+                />
+            </div>
+
+            // ── Image — Styling ───────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Image — Styling"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "base.style controls inline CSS. Tests size, border, border-radius, "
+                "and object-fit."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                // Custom size
+                <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
+                    <RadzenImage
+                        path=Some("https://picsum.photos/seed/style1/200/120".to_string())
+                        alternate_text="Sized image".to_string()
+                        base=ComponentProps {
+                            style: Some("width: 200px; height: 120px;".to_string()),
+                            ..Default::default()
+                        }
+                    />
+                    <span style="font-size: 0.75rem; color: var(--rz-base-600);">"200×120px"</span>
+                </div>
+
+                // Circular with border
+                <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
+                    <RadzenImage
+                        path=Some("https://picsum.photos/seed/circle/100/100".to_string())
+                        alternate_text="Circular image".to_string()
+                        base=ComponentProps {
+                            style: Some("width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--rz-primary); object-fit: cover;".to_string()),
+                            ..Default::default()
+                        }
+                    />
+                    <span style="font-size: 0.75rem; color: var(--rz-base-600);">"Circular + border"</span>
+                </div>
+
+                // Rounded corners + box shadow
+                <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
+                    <RadzenImage
+                        path=Some("https://picsum.photos/seed/rounded/150/100".to_string())
+                        alternate_text="Rounded image".to_string()
+                        base=ComponentProps {
+                            style: Some("width: 150px; height: 100px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); object-fit: cover;".to_string()),
+                            ..Default::default()
+                        }
+                    />
+                    <span style="font-size: 0.75rem; color: var(--rz-base-600);">"Rounded + shadow"</span>
+                </div>
+
+                // Thumbnail (small)
+                <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
+                    <RadzenImage
+                        path=Some("https://picsum.photos/seed/thumb/48/48".to_string())
+                        alternate_text="Thumbnail".to_string()
+                        base=ComponentProps {
+                            style: Some("width: 48px; height: 48px; object-fit: cover; border-radius: 4px;".to_string()),
+                            ..Default::default()
+                        }
+                    />
+                    <span style="font-size: 0.75rem; color: var(--rz-base-600);">"48px thumbnail"</span>
+                </div>
+            </div>
+
+            // ── Image — Clickable (on_click) ──────────────────────────────
+            <h2 style="margin-top: 2rem;">"Image — Clickable"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "When on_click is set, Blazor adds role=\"button\" and tabindex=\"0\". "
+                "Click the image — a browser alert should appear. "
+                "Inspect DOM to verify role and tabindex attributes."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/clickable/160/100".to_string())
+                    alternate_text="Click me".to_string()
+                    base=ComponentProps {
+                        style: Some("width: 160px; height: 100px; cursor: pointer; border-radius: 8px; object-fit: cover; border: 2px solid var(--rz-primary);".to_string()),
+                        ..Default::default()
+                    }
+                    on_click=Some(std::sync::Arc::new(|_ev| {
+                        Box::pin(async move {
+                            web_sys::window()
+                                .unwrap()
+                                .alert_with_message("RadzenImage clicked!")
+                                .ok();
+                        })
+                    }))
+                />
+            </div>
+
+            // ── Image — Keyboard Activation (Enter / Space) ───────────────
+            <h2 style="margin-top: 2rem;">"Image — Keyboard Activation"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Tab to this image and press Enter or Space — the same click "
+                "handler fires. Mirrors Blazor's OnKeyDown logic (Code ?? Key "
+                "checked for \"Enter\" or \"Space\")."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/keyboard/160/100".to_string())
+                    alternate_text="Tab to me and press Enter or Space".to_string()
+                    base=ComponentProps {
+                        style: Some("width: 160px; height: 100px; cursor: pointer; border-radius: 8px; object-fit: cover; border: 2px dashed var(--rz-success);".to_string()),
+                        ..Default::default()
+                    }
+                    on_click=Some(std::sync::Arc::new(|_ev| {
+                        Box::pin(async move {
+                            web_sys::window()
+                                .unwrap()
+                                .alert_with_message("Keyboard activation worked!")
+                                .ok();
+                        })
+                    }))
+                />
+            </div>
+
+            // ── Image — No Click (no role/tabindex) ───────────────────────
+            <h2 style="margin-top: 2rem;">"Image — No Click Handler"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Without on_click, no role or tabindex attributes are added to "
+                "the DOM — mirrors Blazor's Click.HasDelegate = false branch. "
+                "Inspect DOM to verify."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/noclick/160/100".to_string())
+                    alternate_text="No click handler".to_string()
+                    base=ComponentProps {
+                        style: Some("width: 160px; height: 100px; border-radius: 8px; object-fit: cover;".to_string()),
+                        ..Default::default()
+                    }
+                />
+            </div>
+
+            // ── Image — attrs["class"] passthrough ────────────────────────
+            <h2 style="margin-top: 2rem;">"Image — Caller Class"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "base.attrs[\"class\"] is appended via GetCssClass(). "
+                "Inspect DOM: class attribute should be \"rz-border-radius-10\"."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/callerclass/160/100".to_string())
+                    alternate_text="Has caller class".to_string()
+                    base=ComponentProps {
+                        style: Some("width: 160px; height: 100px; object-fit: cover;".to_string()),
+                        attrs: Some(HashMap::from([
+                            ("class".to_string(), "rz-border-radius-10".to_string()),
+                        ])),
+                        ..Default::default()
+                    }
+                />
+            </div>
+
+            // ── Image — Base64 Data URL ───────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Image — Base64 Data URL"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "path accepts data URLs — mirrors the base64 example in the C# "
+                "XML doc comments. A small inline SVG is used here."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenImage
+                    // Inline SVG as data URL — no network request needed.
+                    path=Some("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Crect width='120' height='80' fill='%234f46e5'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-size='14'%3EBase64%3C/text%3E%3C/svg%3E".to_string())
+                    alternate_text="Inline SVG via data URL".to_string()
+                    base=ComponentProps {
+                        style: Some("width: 120px; height: 80px; border-radius: 6px;".to_string()),
+                        ..Default::default()
+                    }
+                />
+            </div>
+
+            // ── Image — Visibility ────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Image — Visibility"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "The middle image has Visible=false — it renders nothing "
+                "(no DOM node, no blank space). Only the first and third "
+                "images should appear."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/vis1/120/80".to_string())
+                    alternate_text="Visible image 1".to_string()
+                    base=ComponentProps {
+                        style: Some("width: 120px; height: 80px; border-radius: 6px; object-fit: cover;".to_string()),
+                        ..Default::default()
+                    }
+                />
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/hidden/120/80".to_string())
+                    alternate_text="Hidden — should not appear".to_string()
+                    base=ComponentProps {
+                        visible: Some(false),
+                        style: Some("width: 120px; height: 80px;".to_string()),
+                        ..Default::default()
+                    }
+                />
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/vis2/120/80".to_string())
+                    alternate_text="Visible image 2".to_string()
+                    base=ComponentProps {
+                        style: Some("width: 120px; height: 80px; border-radius: 6px; object-fit: cover;".to_string()),
+                        ..Default::default()
+                    }
+                />
+            </div>
+
+            // ── Image — Inside RadzenCard ─────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Image — Inside RadzenCard"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Mirrors the common usage pattern from the C# XML doc comments: "
+                "RadzenImage inside a RadzenCard with RadzenText labels."
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
+                <RadzenCard variant=Variant::Outlined>
+                    <div style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; width: 180px;">
+                        <RadzenImage
+                            path=Some("https://picsum.photos/seed/card1/180/120".to_string())
+                            alternate_text="Product photo".to_string()
+                            base=ComponentProps {
+                                style: Some("width: 100%; height: 120px; object-fit: cover; border-radius: 4px;".to_string()),
+                                ..Default::default()
+                            }
+                        />
+                        <RadzenText text_style=TextStyle::H6 text=Some("Product Name".to_string()) />
+                        <RadzenText text_style=TextStyle::Body2 text=Some("$29.99".to_string()) />
+                    </div>
+                </RadzenCard>
+                <RadzenCard variant=Variant::Outlined>
+                    <div style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; width: 180px;">
+                        <RadzenImage
+                            path=Some("https://picsum.photos/seed/card2/180/120".to_string())
+                            alternate_text="Another product".to_string()
+                            base=ComponentProps {
+                                style: Some("width: 100%; height: 120px; object-fit: cover; border-radius: 4px;".to_string()),
+                                ..Default::default()
+                            }
+                        />
+                        <RadzenText text_style=TextStyle::H6 text=Some("Another Item".to_string()) />
+                        <RadzenText text_style=TextStyle::Body2 text=Some("$49.99".to_string()) />
+                    </div>
+                </RadzenCard>
             </div>
         </ErrorBoundary>
     }

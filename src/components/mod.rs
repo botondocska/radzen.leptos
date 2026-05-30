@@ -1,3 +1,6 @@
+pub mod alert;
+pub mod alert_size;
+pub mod alert_style;
 pub mod align_items;
 pub mod badge;
 pub mod badge_style;
@@ -27,6 +30,9 @@ pub mod variant;
 pub mod renderer;
 
 // Re-export commonly used types
+pub use alert::RadzenAlert;
+pub use alert_size::AlertSize;
+pub use alert_style::AlertStyle;
 pub use align_items::AlignItems;
 pub use badge::RadzenBadge;
 pub use badge_style::BadgeStyle;

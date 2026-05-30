@@ -2,11 +2,12 @@ use leptos::prelude::*;
 use std::collections::HashMap;
 
 use crate::components::{
-    AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, FlexWrap, IconStyle,
+    RadzenAlert,AlertSize, AlertStyle, AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, FlexWrap, IconStyle,
     ImageClickFuture, ImageClickHandler, JustifyContent, NavLinkMatch, Orientation, RadzenBadge,
     RadzenButton, RadzenCard, RadzenIcon, RadzenImage, RadzenLink, RadzenStack, RadzenText, Shade,
     TagName, TextAlign, TextStyle, Variant,
 };
+
 
 /// Default Home Page
 #[component]
@@ -1036,6 +1037,40 @@ pub fn Home() -> impl IntoView {
                         <RadzenText text_style=TextStyle::Body2 text=Some("$49.99".to_string()) />
                     </div>
                 </RadzenCard>
+                <RadzenAlert
+                    alert_style=AlertStyle::Info
+                    title=Some("Information".to_string())
+                    text=Some("This is an informational message.".to_string())
+                />
+                // Dismissible success alert
+                <RadzenAlert
+                    alert_style=AlertStyle::Success
+                    variant=Variant::Flat
+                    shade=Shade::Lighter
+                    title=Some("Done!".to_string())
+                    text=Some("Your changes have been saved.".to_string())
+                    on_close=Some(std::sync::Arc::new(|| log::info!("alert closed")))
+                />
+                // No icon, no close button (e.g. event console rows)
+                <RadzenAlert
+                    show_icon=false
+                    allow_close=false
+                    alert_style=AlertStyle::Warning
+                    size=AlertSize::ExtraSmall
+                    shade=Shade::Lighter
+                    variant=Variant::Flat
+                >
+                <span>"Custom rich content inside the alert."</span>
+                </RadzenAlert>
+
+                // Danger, outlined, with custom icon
+                <RadzenAlert
+                    alert_style=AlertStyle::Danger
+                    variant=Variant::Outlined
+                    icon=Some("bug_report".to_string())
+                    title=Some("Error".to_string())
+                    text=Some("Something went wrong. Please try again.".to_string())
+                />
             </div>
         </ErrorBoundary>
     }

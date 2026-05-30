@@ -5,7 +5,7 @@
 //!
 //! Blazor `GetComponentCssClass()`:
 //! ```csharp
-//! return "rz-label";
+//! protected override string GetComponentCssClass() => "rz-label";
 //! ```
 //! `RadzenComponent.GetCssClass()` then appends any caller `class` attribute last.
 //!
@@ -22,19 +22,24 @@
 //! }
 //! ```
 //!
-//! # Component / for attribute
-//! The `Component` parameter maps to the HTML `for` attribute.  When set it
-//! must match the `Name` property of the associated Radzen input component so
-//! that clicking the label focuses that input.  When `None` the `for`
-//! attribute is omitted entirely (mirrors Blazor's nullable `Component`
-//! param).
+//! # Properties
+//! | C# Parameter    | Rust prop     | Notes                                              |
+//! |-----------------|---------------|----------------------------------------------------|
+//! | `Text`          | `text`        | Plain-text label content                           |
+//! | `Component`     | `component`   | Maps to HTML `for` attr; matches input `Name`      |
+//! | `ChildContent`  | `children`    | Rich markup — overrides `text` when provided       |
 //!
 //! # Content priority
 //! `children` (ChildContent) takes precedence over `text` when both are
 //! supplied — mirrors Blazor's `@(ChildContent ?? ...)` pattern.
 //!
+//! # Component / for attribute
+//! When `component` is `None` the `for` attribute is omitted entirely —
+//! mirrors Blazor's nullable `string? Component` param (`null` → no attr).
+//!
 //! # Visibility
-//! Mirrors `@if (Visible)` — element fully omitted when invisible.
+//! Mirrors `@if (Visible)` — element fully omitted when invisible (same
+//! early-return pattern as `RadzenText`, `RadzenStack`, `RadzenLink`).
 
 use crate::components::{
     ClassList,
@@ -58,7 +63,7 @@ use leptos::prelude::*;
 /// both are given, `children` wins — mirroring Blazor's `ChildContent ?? Text`
 /// precedence.
 ///
-/// # Example
+/// # Examples
 /// ```rust,ignore
 /// // Simple text label associated with a named input
 /// <RadzenLabel text="Email address" component=Some("email_input") />
@@ -85,25 +90,27 @@ pub fn RadzenLabel(
     /// Name of the associated input component.
     ///
     /// Must match the `Name` prop of the target Radzen input to create the
-    /// proper `<label for="…">` relationship.  When `None` the `for` attribute
-    /// is omitted — mirrors C# `public string? Component { get; set; }`.
+    /// proper `<label for="…">` relationship. When `None` the `for` attribute
+    /// is omitted entirely — mirrors C# `public string? Component { get; set; }`.
     #[prop(default = None, into)]
     component: Option<String>,
 
     /// Optional child content — overrides `text` when provided.
+    ///
+    /// Mirrors Blazor's `RenderFragment? ChildContent`.
     #[prop(optional)]
     children: Option<ChildrenFn>,
 ) -> impl IntoView {
     let handle = use_radzen_base(&base, "");
 
-    // Visibility — mirrors `@if (Visible)`.
+    // ── Visibility — mirrors `@if (Visible)` ──────────────────────────────────
     if !handle.visible.get_untracked() {
         return None::<AnyView>.into_any();
     }
 
     // ── CSS class ─────────────────────────────────────────────────────────────
-    // Blazor GetComponentCssClass() returns simply "rz-label".
-    // GetCssClass() then appends caller attrs["class"] last.
+    // GetComponentCssClass() returns "rz-label".
+    // GetCssClass() appends caller attrs["class"] last.
     let css_class = ClassList::create("rz-label")
         .add_caller_class(
             base.attrs
@@ -126,7 +133,7 @@ pub fn RadzenLabel(
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
-    // The `for` attribute is only emitted when `component` is Some — mirrors
+    // The `for` attribute is only emitted when `component` is `Some` — mirrors
     // Blazor's nullable Component property (null → no for attribute).
     Some(
         leptos::html::label()

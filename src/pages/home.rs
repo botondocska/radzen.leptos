@@ -2,7 +2,7 @@ use leptos::prelude::*;
 use std::collections::HashMap;
 
 use crate::components::{
-    AlertSize, AlertStyle, AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps,
+    AlertSize, AlertStyle, RadzenLabel, AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps,
     FlexWrap, IconStyle, ImageClickFuture, ImageClickHandler, JustifyContent, NavLinkMatch,
     Orientation, RadzenAlert, RadzenBadge, RadzenButton, RadzenCard, RadzenIcon, RadzenImage,
     RadzenLink, RadzenStack, RadzenText, Shade, TagName, TextAlign, TextStyle, Variant,
@@ -735,6 +735,32 @@ pub fn Home() -> impl IntoView {
                         <RadzenText text_style=TextStyle::Body2 text=Some("$29.99".to_string()) />
                     </div>
                 </RadzenCard>
+            </div>
+
+            // ── Labels ────────────────────────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Labels — Basic"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <RadzenLabel text=Some("Email address".to_string()) component=Some("email_input".to_string()) />
+                <RadzenLabel text=Some("Password".to_string()) component=Some("password_input".to_string()) />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"Labels — Rich Content"</h2>
+            <RadzenLabel component=Some("required_field".to_string())>
+                "Name "
+                <span style="color: var(--rz-danger);">"*"</span>
+            </RadzenLabel>
+
+            <h2 style="margin-top: 2rem;">"Labels — No Association"</h2>
+            <RadzenLabel text=Some("Standalone label (no for attribute)".to_string()) />
+
+            <h2 style="margin-top: 2rem;">"Labels — Visibility"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <RadzenLabel text=Some("Visible label".to_string()) />
+                <RadzenLabel
+                    text=Some("Hidden (not rendered)".to_string())
+                    base=ComponentProps { visible: Some(false), ..Default::default() }
+                />
+                <RadzenLabel text=Some("Also visible".to_string()) />
             </div>
 
             // ── Alert examples ────────────────────────────────────────────────

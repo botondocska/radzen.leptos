@@ -51,6 +51,7 @@ pub use icon_style::IconStyle;
 pub use image::{ImageClickFuture, ImageClickHandler, RadzenImage};
 pub use justify_content::JustifyContent;
 pub use link::{NavLinkMatch, RadzenLink};
+pub use label::RadzenLabel;
 pub use orientation::Orientation;
 pub use renderer::ClassList;
 pub use shade::Shade;

@@ -2,16 +2,31 @@ use leptos::prelude::*;
 use std::collections::HashMap;
 
 use crate::components::{
-    RadzenAlert,AlertSize, AlertStyle, AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, FlexWrap, IconStyle,
-    ImageClickFuture, ImageClickHandler, JustifyContent, NavLinkMatch, Orientation, RadzenBadge,
-    RadzenButton, RadzenCard, RadzenIcon, RadzenImage, RadzenLink, RadzenStack, RadzenText, Shade,
-    TagName, TextAlign, TextStyle, Variant,
+    AlertSize, AlertStyle, AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps,
+    FlexWrap, IconStyle, ImageClickFuture, ImageClickHandler, JustifyContent, NavLinkMatch,
+    Orientation, RadzenAlert, RadzenBadge, RadzenButton, RadzenCard, RadzenIcon, RadzenImage,
+    RadzenLink, RadzenStack, RadzenText, Shade, TagName, TextAlign, TextStyle, Variant,
 };
-
 
 /// Default Home Page
 #[component]
 pub fn Home() -> impl IntoView {
+    // ── Timed-alert demo state ────────────────────────────────────────────────
+    // Each signal drives one alert's visibility. Clicking the matching button
+    // sets it to `true`; a gloo timeout flips it back to `false` after 3 s.
+    let show_success = RwSignal::new(false);
+    let show_danger = RwSignal::new(false);
+    let show_info = RwSignal::new(false);
+
+    /// Trigger an alert for `ms` milliseconds then auto-dismiss it.
+    fn trigger(signal: RwSignal<bool>, ms: u32) {
+        signal.set(true);
+        gloo_timers::callback::Timeout::new(ms, move || {
+            signal.set(false);
+        })
+        .forget(); // hand ownership to the browser event loop
+    }
+
     view! {
         <ErrorBoundary fallback=|errors| {
             view! {
@@ -30,8 +45,72 @@ pub fn Home() -> impl IntoView {
         }>
             <div class="container">
 
+                // ── Timed Alert Demo ──────────────────────────────────────────
+                <h2>"Timed Alert Demo"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                    "Click a button — the matching alert appears for 3 seconds then dismisses itself."
+                </p>
+
+                // Trigger buttons
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem;">
+                    <RadzenButton
+                        text="Show Success".to_string()
+                        button_style=ButtonStyle::Success
+                        icon=Some("check_circle".to_string())
+                        on_click=Some(std::sync::Arc::new(move |_ev| {
+                            Box::pin(async move { trigger(show_success, 3000); })
+                        }))
+                    />
+                    <RadzenButton
+                        text="Show Error".to_string()
+                        button_style=ButtonStyle::Danger
+                        icon=Some("error".to_string())
+                        on_click=Some(std::sync::Arc::new(move |_ev| {
+                            Box::pin(async move { trigger(show_danger, 3000); })
+                        }))
+                    />
+                    <RadzenButton
+                        text="Show Info".to_string()
+                        button_style=ButtonStyle::Info
+                        icon=Some("info".to_string())
+                        on_click=Some(std::sync::Arc::new(move |_ev| {
+                            Box::pin(async move { trigger(show_info, 3000); })
+                        }))
+                    />
+                </div>
+
+                // Alerts — rendered conditionally via Show
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; min-height: 3rem;">
+                    <Show when=move || show_success.get()>
+                        <RadzenAlert
+                            alert_style=AlertStyle::Success
+                            title=Some("Success!".to_string())
+                            text=Some("The operation completed successfully.".to_string())
+                            on_close=Some(std::sync::Arc::new(move || show_success.set(false)))
+                        />
+                    </Show>
+                    <Show when=move || show_danger.get()>
+                        <RadzenAlert
+                            alert_style=AlertStyle::Danger
+                            title=Some("Error!".to_string())
+                            text=Some("Something went wrong. Please try again.".to_string())
+                            on_close=Some(std::sync::Arc::new(move || show_danger.set(false)))
+                        />
+                    </Show>
+                    <Show when=move || show_info.get()>
+                        <RadzenAlert
+                            alert_style=AlertStyle::Info
+                            variant=Variant::Flat
+                            shade=Shade::Lighter
+                            title=Some("Did you know?".to_string())
+                            text=Some("This alert will dismiss itself after 3 seconds.".to_string())
+                            on_close=Some(std::sync::Arc::new(move || show_info.set(false)))
+                        />
+                    </Show>
+                </div>
+
                 // ── Buttons ───────────────────────────────────────────────────
-                <h2>"Buttons"</h2>
+                <h2 style="margin-top: 2rem;">"Buttons"</h2>
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
                     <RadzenButton
                         text="Primary".to_string()
@@ -288,11 +367,8 @@ pub fn Home() -> impl IntoView {
 
                 // ══════════════════════════════════════════════════════════════
                 // RadzenText examples
-                // Mirrors the sections from TextPage.razor + the TextStyles,
-                // TextTagName, TextDisplayHeadings, TextAlignment sub-examples.
                 // ══════════════════════════════════════════════════════════════
 
-                // Page heading — mirrors TextPage.razor lines 3-8
                 <RadzenText
                     text_style=TextStyle::H2
                     tag_name=TagName::H1
@@ -314,8 +390,6 @@ pub fn Home() -> impl IntoView {
                     "Format and style text in your application with predefined text styles."
                 </RadzenText>
 
-                // ── Text — Text Style ─────────────────────────────────────────
-                // Mirrors TextPage.razor lines 10-17 + TextStyles sub-example.
                 <RadzenText
                     anchor="text-style".to_string()
                     text_style=TextStyle::H5
@@ -337,7 +411,6 @@ pub fn Home() -> impl IntoView {
                     "Use the TextStyle property to apply a predefined text style."
                 </RadzenText>
 
-                // TextStyles sub-example: one row per style group
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <RadzenText text_style=TextStyle::H1      text=Some("H1 – Heading 1".to_string()) />
                     <RadzenText text_style=TextStyle::H2      text=Some("H2 – Heading 2".to_string()) />
@@ -354,8 +427,6 @@ pub fn Home() -> impl IntoView {
                     <RadzenText text_style=TextStyle::Button  text=Some("Button – button label style.".to_string()) />
                 </div>
 
-                // ── Text — Tag Name ───────────────────────────────────────────
-                // Mirrors TextPage.razor lines 19-27 + TextTagName sub-example.
                 <RadzenText
                     anchor="text-tag-name".to_string()
                     text_style=TextStyle::H5
@@ -377,36 +448,13 @@ pub fn Home() -> impl IntoView {
                     "Use TextStyle together with TagName to apply different styling while keeping the code semantically correct."
                 </RadzenText>
 
-                // TextTagName sub-example — style and tag intentionally differ
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    // H5 visual style rendered as semantic <h2>
-                    <RadzenText
-                        text_style=TextStyle::H5
-                        tag_name=TagName::H2
-                        text=Some("H5 style on an <h2> element".to_string())
-                    />
-                    // Subtitle1 style rendered as <p>
-                    <RadzenText
-                        text_style=TextStyle::Subtitle1
-                        tag_name=TagName::P
-                        text=Some("Subtitle1 style on a <p> element".to_string())
-                    />
-                    // Body1 style rendered as <div>
-                    <RadzenText
-                        text_style=TextStyle::Body1
-                        tag_name=TagName::Div
-                        text=Some("Body1 style on a <div> element".to_string())
-                    />
-                    // Caption style rendered as <span>
-                    <RadzenText
-                        text_style=TextStyle::Caption
-                        tag_name=TagName::Span
-                        text=Some("Caption style on a <span> element".to_string())
-                    />
+                    <RadzenText text_style=TextStyle::H5      tag_name=TagName::H2 text=Some("H5 style on an <h2> element".to_string()) />
+                    <RadzenText text_style=TextStyle::Subtitle1 tag_name=TagName::P text=Some("Subtitle1 style on a <p> element".to_string()) />
+                    <RadzenText text_style=TextStyle::Body1   tag_name=TagName::Div text=Some("Body1 style on a <div> element".to_string()) />
+                    <RadzenText text_style=TextStyle::Caption tag_name=TagName::Span text=Some("Caption style on a <span> element".to_string()) />
                 </div>
 
-                // ── Text — Display Headings ───────────────────────────────────
-                // Mirrors TextPage.razor lines 29-37 + TextDisplayHeadings sub-example.
                 <RadzenText
                     anchor="text-display-headings".to_string()
                     text_style=TextStyle::H5
@@ -425,10 +473,9 @@ pub fn Home() -> impl IntoView {
                         ..Default::default()
                     }
                 >
-                    "Use display headings to emphasise a text or page title. Display headings are usually larger than traditional headings."
+                    "Use display headings to emphasise a text or page title."
                 </RadzenText>
 
-                // TextDisplayHeadings sub-example
                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                     <RadzenText text_style=TextStyle::DisplayH1 text=Some("Display H1".to_string()) />
                     <RadzenText text_style=TextStyle::DisplayH2 text=Some("Display H2".to_string()) />
@@ -438,8 +485,6 @@ pub fn Home() -> impl IntoView {
                     <RadzenText text_style=TextStyle::DisplayH6 text=Some("Display H6".to_string()) />
                 </div>
 
-                // ── Text — Text Align ─────────────────────────────────────────
-                // Mirrors TextPage.razor lines 39-47 + TextAlignment sub-example.
                 <RadzenText
                     anchor="text-align".to_string()
                     text_style=TextStyle::H5
@@ -461,41 +506,15 @@ pub fn Home() -> impl IntoView {
                     "Use TextAlign to align your text."
                 </RadzenText>
 
-                // TextAlignment sub-example — one block per alignment value
                 <div style="display: flex; flex-direction: column; gap: 0.5rem; border: 1px solid var(--rz-base-300); border-radius: 4px; padding: 1rem;">
-                    <RadzenText
-                        text_style=TextStyle::Body1
-                        text_align=TextAlign::Left
-                        text=Some("TextAlign.Left — Radzen Leptos Components are open source and free for commercial use.".to_string())
-                    />
-                    <RadzenText
-                        text_style=TextStyle::Body1
-                        text_align=TextAlign::Center
-                        text=Some("TextAlign.Center — Radzen Leptos Components are open source and free for commercial use.".to_string())
-                    />
-                    <RadzenText
-                        text_style=TextStyle::Body1
-                        text_align=TextAlign::Right
-                        text=Some("TextAlign.Right — Radzen Leptos Components are open source and free for commercial use.".to_string())
-                    />
-                    <RadzenText
-                        text_style=TextStyle::Body1
-                        text_align=TextAlign::Justify
-                        text=Some("TextAlign.Justify — Radzen Leptos Components are open source and free for commercial use. You can install them from crates.io or build your own copy from source.".to_string())
-                    />
-                    <RadzenText
-                        text_style=TextStyle::Body1
-                        text_align=TextAlign::Start
-                        text=Some("TextAlign.Start — logical inline-start (same as Left in LTR documents).".to_string())
-                    />
-                    <RadzenText
-                        text_style=TextStyle::Body1
-                        text_align=TextAlign::End
-                        text=Some("TextAlign.End — logical inline-end (same as Right in LTR documents).".to_string())
-                    />
+                    <RadzenText text_style=TextStyle::Body1 text_align=TextAlign::Left    text=Some("TextAlign.Left — Radzen Leptos Components are open source and free for commercial use.".to_string()) />
+                    <RadzenText text_style=TextStyle::Body1 text_align=TextAlign::Center  text=Some("TextAlign.Center — Radzen Leptos Components are open source and free for commercial use.".to_string()) />
+                    <RadzenText text_style=TextStyle::Body1 text_align=TextAlign::Right   text=Some("TextAlign.Right — Radzen Leptos Components are open source and free for commercial use.".to_string()) />
+                    <RadzenText text_style=TextStyle::Body1 text_align=TextAlign::Justify text=Some("TextAlign.Justify — Radzen Leptos Components are open source and free for commercial use. You can install them from crates.io or build your own copy from source.".to_string()) />
+                    <RadzenText text_style=TextStyle::Body1 text_align=TextAlign::Start   text=Some("TextAlign.Start — logical inline-start (same as Left in LTR documents).".to_string()) />
+                    <RadzenText text_style=TextStyle::Body1 text_align=TextAlign::End     text=Some("TextAlign.End — logical inline-end (same as Right in LTR documents).".to_string()) />
                 </div>
 
-                // ── Text — Children (rich content) ────────────────────────────
                 <RadzenText
                     anchor="text-children".to_string()
                     text_style=TextStyle::H5
@@ -510,10 +529,9 @@ pub fn Home() -> impl IntoView {
                 <RadzenText text_style=TextStyle::Body1>
                     "When "
                     <code>"text"</code>
-                    " is not set, child content is rendered instead. This allows mixing styled markup inside a typed text container."
+                    " is not set, child content is rendered instead."
                 </RadzenText>
 
-                // ── Text — Visibility ─────────────────────────────────────────
                 <RadzenText
                     anchor="text-visibility".to_string()
                     text_style=TextStyle::H5
@@ -525,59 +543,32 @@ pub fn Home() -> impl IntoView {
                 >
                     "Visibility"
                 </RadzenText>
-                <RadzenText
-                    text_style=TextStyle::Body1
-                    base=ComponentProps {
-                        attrs: Some(HashMap::from([("class".to_string(), "rz-mb-4".to_string())])),
-                        ..Default::default()
-                    }
-                >
-                    "The second paragraph below has Visible=false — it renders nothing (no DOM node)."
-                </RadzenText>
-                <RadzenText
-                    text_style=TextStyle::Body1
-                    text=Some("I am visible.".to_string())
-                />
+                <RadzenText text_style=TextStyle::Body1 text=Some("I am visible.".to_string()) />
                 <RadzenText
                     text_style=TextStyle::Body1
                     text=Some("I am hidden — you should not see this.".to_string())
                     base=ComponentProps { visible: Some(false), ..Default::default() }
                 />
-                <RadzenText
-                    text_style=TextStyle::Body1
-                    text=Some("I am also visible.".to_string())
-                />
+                <RadzenText text_style=TextStyle::Body1 text=Some("I am also visible.".to_string()) />
 
-                // ── Stack ─────────────────────────────────────────────────────────────
+                // ── Stack ─────────────────────────────────────────────────────
                 <h2 style="margin-top: 2rem;">"Stack"</h2>
 
-                // Vertical (default)
                 <h3 style="margin-top: 1rem;">"Stack — Vertical (default)"</h3>
-                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                    "Three badges stacked top-to-bottom with 0.5rem gap. This is the default orientation — no extra props needed beyond gap."
-                </p>
                 <RadzenStack gap=Some("0.5rem".to_string())>
                     <RadzenBadge text=Some("First".to_string())  badge_style=BadgeStyle::Primary />
                     <RadzenBadge text=Some("Second".to_string()) badge_style=BadgeStyle::Secondary />
                     <RadzenBadge text=Some("Third".to_string())  badge_style=BadgeStyle::Info />
                 </RadzenStack>
 
-                // Horizontal
                 <h3 style="margin-top: 1rem;">"Stack — Horizontal"</h3>
-                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                    "Three badges arranged left-to-right with 1rem gap between them."
-                </p>
                 <RadzenStack orientation=Orientation::Horizontal gap=Some("1rem".to_string())>
                     <RadzenBadge text=Some("First".to_string())  badge_style=BadgeStyle::Primary />
                     <RadzenBadge text=Some("Second".to_string()) badge_style=BadgeStyle::Secondary />
                     <RadzenBadge text=Some("Third".to_string())  badge_style=BadgeStyle::Info />
                 </RadzenStack>
 
-                // AlignItems
                 <h3 style="margin-top: 1rem;">"Stack — AlignItems Center"</h3>
-                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                    "Three badges in a bordered row. The middle badge is made taller via style. All three should be vertically centered — their midpoints aligned on the same horizontal line."
-                </p>
                 <RadzenStack
                     orientation=Orientation::Horizontal
                     align_items=AlignItems::Center
@@ -590,29 +581,18 @@ pub fn Home() -> impl IntoView {
                     <RadzenBadge text=Some("C".to_string()) badge_style=BadgeStyle::Danger />
                 </RadzenStack>
 
-                // JustifyContent
                 <h3 style="margin-top: 1rem;">"Stack — JustifyContent SpaceBetween"</h3>
-                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                    "Cancel button pushed to the far left, Save button pushed to the far right, with all remaining space between them. The container spans full width."
-                </p>
                 <RadzenStack
                     orientation=Orientation::Horizontal
                     justify_content=JustifyContent::SpaceBetween
-                    base=ComponentProps {
-                        style: Some("width: 100%;".to_string()),
-                        ..Default::default()
-                    }
+                    base=ComponentProps { style: Some("width: 100%;".to_string()), ..Default::default() }
                 >
                     <RadzenButton text="Cancel".to_string() button_style=ButtonStyle::Secondary />
                     <RadzenButton text="Cancel".to_string() button_style=ButtonStyle::Secondary />
                     <RadzenButton text="Save".to_string()   button_style=ButtonStyle::Primary />
                 </RadzenStack>
 
-                // Wrap
                 <h3 style="margin-top: 1rem;">"Stack — Wrap"</h3>
-                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                    "Five badges in a 300px-wide bordered container. Because they don't all fit on one line, they wrap: the first few appear on row 1, the rest continue on row 2."
-                </p>
                 <RadzenStack
                     orientation=Orientation::Horizontal
                     wrap=FlexWrap::Wrap
@@ -626,30 +606,19 @@ pub fn Home() -> impl IntoView {
                     <RadzenBadge text=Some("Epsilon".to_string()) badge_style=BadgeStyle::Warning />
                 </RadzenStack>
 
-                // Reverse
                 <h3 style="margin-top: 1rem;">"Stack — Reverse"</h3>
-                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                    "Badges 1, 2, 3 are passed in that order in markup, but rendered right-to-left: 3 · 2 · 1."
-                </p>
                 <RadzenStack
                     orientation=Orientation::Horizontal
                     gap=Some("0.5rem".to_string())
                     reverse=true
-                    base=ComponentProps {
-                        style: Some("width: 100%;".to_string()),
-                        ..Default::default()
-                    }
+                    base=ComponentProps { style: Some("width: 100%;".to_string()), ..Default::default() }
                 >
                     <RadzenBadge text=Some("1".to_string()) badge_style=BadgeStyle::Primary />
                     <RadzenBadge text=Some("2".to_string()) badge_style=BadgeStyle::Secondary />
                     <RadzenBadge text=Some("3".to_string()) badge_style=BadgeStyle::Info />
                 </RadzenStack>
 
-                // Visibility
                 <h3 style="margin-top: 1rem;">"Stack — Visibility"</h3>
-                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                    "A visible green badge, then a RadzenStack with Visible=false (renders nothing — no gap, no space), then another visible blue badge. Only two badges should appear."
-                </p>
                 <RadzenStack gap=Some("0.5rem".to_string())>
                     <RadzenBadge text=Some("Visible".to_string())              badge_style=BadgeStyle::Success />
                     <RadzenStack
@@ -661,211 +630,79 @@ pub fn Home() -> impl IntoView {
                     <RadzenBadge text=Some("Also visible".to_string()) badge_style=BadgeStyle::Info />
                 </RadzenStack>
             </div>
+
+            // ── Links ─────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — Basic"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "Default link with text only."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
                 <RadzenLink path="/" text="Home" />
                 <RadzenLink path="/about" text="About" />
-                <RadzenLink
-                    path="https://radzen.com"
-                    text="Radzen"
-                    target=Some("_blank".to_string())
-                />
+                <RadzenLink path="https://radzen.com" text="Radzen" target=Some("_blank".to_string()) />
             </div>
 
-            // ── Links — With Icon ─────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — With Icon"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "Links with a Material icon before the label."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
                 <RadzenLink path="/" text="Home" icon=Some("home".to_string()) />
-                <RadzenLink
-                    path="https://radzen.com"
-                    text="Visit Radzen"
-                    icon=Some("open_in_new".to_string())
-                    target=Some("_blank".to_string())
-                />
-                <RadzenLink
-                    path="/settings"
-                    text="Settings"
-                    icon=Some("settings".to_string())
-                    icon_color=Some("var(--rz-primary)".to_string())
-                />
+                <RadzenLink path="https://radzen.com" text="Visit Radzen" icon=Some("open_in_new".to_string()) target=Some("_blank".to_string()) />
+                <RadzenLink path="/settings" text="Settings" icon=Some("settings".to_string()) icon_color=Some("var(--rz-primary)".to_string()) />
             </div>
 
-            // ── Links — Disabled ──────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — Disabled"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "Disabled links have no href, no target, and gain rz-link-disabled."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-                <RadzenLink path="/active"   text="Active link"   />
-                <RadzenLink path="/disabled" text="Disabled link" disabled=true />
-                <RadzenLink
-                    path="/disabled-icon"
-                    text="Disabled with icon"
-                    icon=Some("lock".to_string())
-                    disabled=true
-                />
+                <RadzenLink path="/active"        text="Active link"         />
+                <RadzenLink path="/disabled"      text="Disabled link"       disabled=true />
+                <RadzenLink path="/disabled-icon" text="Disabled with icon"  icon=Some("lock".to_string()) disabled=true />
             </div>
 
-            // ── Links — Match mode ────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — Match Mode"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "Prefix match (default) vs exact match for active-state detection."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
                 <RadzenLink path="/" text="Home (Prefix)" match_=NavLinkMatch::Prefix />
                 <RadzenLink path="/" text="Home (Exact)"  match_=NavLinkMatch::All />
             </div>
 
-            // ── Links — Children ──────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — Children (Rich Content)"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "When children are provided, text is ignored."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-                <RadzenLink path="/">
-                    <strong>"🏠 Go Home"</strong>
-                </RadzenLink>
+                <RadzenLink path="/"><strong>"🏠 Go Home"</strong></RadzenLink>
             </div>
 
-            // ── Links — Visibility ────────────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Links — Visibility"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "The second link has Visible=false — it renders nothing."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
                 <RadzenLink path="/" text="Visible" />
-                <RadzenLink
-                    path="/"
-                    text="Hidden (not rendered)"
-                    base=ComponentProps { visible: Some(false), ..Default::default() }
-                />
+                <RadzenLink path="/" text="Hidden (not rendered)" base=ComponentProps { visible: Some(false), ..Default::default() } />
                 <RadzenLink path="/" text="Also visible" />
             </div>
-            // ══════════════════════════════════════════════════════════════
-            // RadzenImage examples
-            // Tests every prop: path, alternate_text, attrs["alt"] merge,
-            // style, on_click (role/tabindex), keyboard Enter/Space,
-            // attrs["class"], visibility, base64 data URL, external URL.
-            // ══════════════════════════════════════════════════════════════
 
-            // ── Image — Basic ─────────────────────────────────────────────
+            // ── Image examples ────────────────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Image — Basic"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "Minimal usage: path only. No click handler, no extra attrs. "
-                "Alt defaults to \"image\"."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
-                <RadzenImage
-                    path=Some("https://picsum.photos/seed/basic/120/80".to_string())
-                />
+                <RadzenImage path=Some("https://picsum.photos/seed/basic/120/80".to_string()) />
             </div>
 
-            // ── Image — Alternate Text ────────────────────────────────────
             <h2 style="margin-top: 2rem;">"Image — Alternate Text"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "Custom alternate_text prop. Inspect the DOM: alt should be "
-                "\"A scenic mountain landscape\"."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
-                <RadzenImage
-                    path=Some("https://picsum.photos/seed/alttext/120/80".to_string())
-                    alternate_text="A scenic mountain landscape".to_string()
-                />
+                <RadzenImage path=Some("https://picsum.photos/seed/alttext/120/80".to_string()) alternate_text="A scenic mountain landscape".to_string() />
             </div>
 
-            // ── Image — attrs["alt"] Merge (GetAlternateText) ─────────────
-            <h2 style="margin-top: 2rem;">"Image — Alt Attribute Merge"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "When base.attrs contains \"alt\", Blazor's GetAlternateText() "
-                "appends it: \"{alternate_text} {attrs[alt]}\". "
-                "Inspect DOM: alt should be \"Photo (uploaded by user)\"."
-            </p>
+            <h2 style="margin-top: 2rem;">"Image — Styling"</h2>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
                 <RadzenImage
-                    path=Some("https://picsum.photos/seed/altmerge/120/80".to_string())
-                    alternate_text="Photo".to_string()
+                    path=Some("https://picsum.photos/seed/circle/100/100".to_string())
+                    alternate_text="Circular image".to_string()
                     base=ComponentProps {
-                        attrs: Some(HashMap::from([
-                            ("alt".to_string(), "(uploaded by user)".to_string()),
-                        ])),
+                        style: Some("width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--rz-primary); object-fit: cover;".to_string()),
+                        ..Default::default()
+                    }
+                />
+                <RadzenImage
+                    path=Some("https://picsum.photos/seed/rounded/150/100".to_string())
+                    alternate_text="Rounded image".to_string()
+                    base=ComponentProps {
+                        style: Some("width: 150px; height: 100px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); object-fit: cover;".to_string()),
                         ..Default::default()
                     }
                 />
             </div>
 
-            // ── Image — Styling ───────────────────────────────────────────
-            <h2 style="margin-top: 2rem;">"Image — Styling"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "base.style controls inline CSS. Tests size, border, border-radius, "
-                "and object-fit."
-            </p>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
-                // Custom size
-                <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
-                    <RadzenImage
-                        path=Some("https://picsum.photos/seed/style1/200/120".to_string())
-                        alternate_text="Sized image".to_string()
-                        base=ComponentProps {
-                            style: Some("width: 200px; height: 120px;".to_string()),
-                            ..Default::default()
-                        }
-                    />
-                    <span style="font-size: 0.75rem; color: var(--rz-base-600);">"200×120px"</span>
-                </div>
-
-                // Circular with border
-                <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
-                    <RadzenImage
-                        path=Some("https://picsum.photos/seed/circle/100/100".to_string())
-                        alternate_text="Circular image".to_string()
-                        base=ComponentProps {
-                            style: Some("width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--rz-primary); object-fit: cover;".to_string()),
-                            ..Default::default()
-                        }
-                    />
-                    <span style="font-size: 0.75rem; color: var(--rz-base-600);">"Circular + border"</span>
-                </div>
-
-                // Rounded corners + box shadow
-                <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
-                    <RadzenImage
-                        path=Some("https://picsum.photos/seed/rounded/150/100".to_string())
-                        alternate_text="Rounded image".to_string()
-                        base=ComponentProps {
-                            style: Some("width: 150px; height: 100px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); object-fit: cover;".to_string()),
-                            ..Default::default()
-                        }
-                    />
-                    <span style="font-size: 0.75rem; color: var(--rz-base-600);">"Rounded + shadow"</span>
-                </div>
-
-                // Thumbnail (small)
-                <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
-                    <RadzenImage
-                        path=Some("https://picsum.photos/seed/thumb/48/48".to_string())
-                        alternate_text="Thumbnail".to_string()
-                        base=ComponentProps {
-                            style: Some("width: 48px; height: 48px; object-fit: cover; border-radius: 4px;".to_string()),
-                            ..Default::default()
-                        }
-                    />
-                    <span style="font-size: 0.75rem; color: var(--rz-base-600);">"48px thumbnail"</span>
-                </div>
-            </div>
-
-            // ── Image — Clickable (on_click) ──────────────────────────────
             <h2 style="margin-top: 2rem;">"Image — Clickable"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "When on_click is set, Blazor adds role=\"button\" and tabindex=\"0\". "
-                "Click the image — a browser alert should appear. "
-                "Inspect DOM to verify role and tabindex attributes."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
                 <RadzenImage
                     path=Some("https://picsum.photos/seed/clickable/160/100".to_string())
@@ -876,138 +713,13 @@ pub fn Home() -> impl IntoView {
                     }
                     on_click=Some(std::sync::Arc::new(|_ev| {
                         Box::pin(async move {
-                            web_sys::window()
-                                .unwrap()
-                                .alert_with_message("RadzenImage clicked!")
-                                .ok();
+                            web_sys::window().unwrap().alert_with_message("RadzenImage clicked!").ok();
                         })
                     }))
                 />
             </div>
 
-            // ── Image — Keyboard Activation (Enter / Space) ───────────────
-            <h2 style="margin-top: 2rem;">"Image — Keyboard Activation"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "Tab to this image and press Enter or Space — the same click "
-                "handler fires. Mirrors Blazor's OnKeyDown logic (Code ?? Key "
-                "checked for \"Enter\" or \"Space\")."
-            </p>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
-                <RadzenImage
-                    path=Some("https://picsum.photos/seed/keyboard/160/100".to_string())
-                    alternate_text="Tab to me and press Enter or Space".to_string()
-                    base=ComponentProps {
-                        style: Some("width: 160px; height: 100px; cursor: pointer; border-radius: 8px; object-fit: cover; border: 2px dashed var(--rz-success);".to_string()),
-                        ..Default::default()
-                    }
-                    on_click=Some(std::sync::Arc::new(|_ev| {
-                        Box::pin(async move {
-                            web_sys::window()
-                                .unwrap()
-                                .alert_with_message("Keyboard activation worked!")
-                                .ok();
-                        })
-                    }))
-                />
-            </div>
-
-            // ── Image — No Click (no role/tabindex) ───────────────────────
-            <h2 style="margin-top: 2rem;">"Image — No Click Handler"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "Without on_click, no role or tabindex attributes are added to "
-                "the DOM — mirrors Blazor's Click.HasDelegate = false branch. "
-                "Inspect DOM to verify."
-            </p>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
-                <RadzenImage
-                    path=Some("https://picsum.photos/seed/noclick/160/100".to_string())
-                    alternate_text="No click handler".to_string()
-                    base=ComponentProps {
-                        style: Some("width: 160px; height: 100px; border-radius: 8px; object-fit: cover;".to_string()),
-                        ..Default::default()
-                    }
-                />
-            </div>
-
-            // ── Image — attrs["class"] passthrough ────────────────────────
-            <h2 style="margin-top: 2rem;">"Image — Caller Class"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "base.attrs[\"class\"] is appended via GetCssClass(). "
-                "Inspect DOM: class attribute should be \"rz-border-radius-10\"."
-            </p>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
-                <RadzenImage
-                    path=Some("https://picsum.photos/seed/callerclass/160/100".to_string())
-                    alternate_text="Has caller class".to_string()
-                    base=ComponentProps {
-                        style: Some("width: 160px; height: 100px; object-fit: cover;".to_string()),
-                        attrs: Some(HashMap::from([
-                            ("class".to_string(), "rz-border-radius-10".to_string()),
-                        ])),
-                        ..Default::default()
-                    }
-                />
-            </div>
-
-            // ── Image — Base64 Data URL ───────────────────────────────────
-            <h2 style="margin-top: 2rem;">"Image — Base64 Data URL"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "path accepts data URLs — mirrors the base64 example in the C# "
-                "XML doc comments. A small inline SVG is used here."
-            </p>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
-                <RadzenImage
-                    // Inline SVG as data URL — no network request needed.
-                    path=Some("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Crect width='120' height='80' fill='%234f46e5'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-size='14'%3EBase64%3C/text%3E%3C/svg%3E".to_string())
-                    alternate_text="Inline SVG via data URL".to_string()
-                    base=ComponentProps {
-                        style: Some("width: 120px; height: 80px; border-radius: 6px;".to_string()),
-                        ..Default::default()
-                    }
-                />
-            </div>
-
-            // ── Image — Visibility ────────────────────────────────────────
-            <h2 style="margin-top: 2rem;">"Image — Visibility"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "The middle image has Visible=false — it renders nothing "
-                "(no DOM node, no blank space). Only the first and third "
-                "images should appear."
-            </p>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
-                <RadzenImage
-                    path=Some("https://picsum.photos/seed/vis1/120/80".to_string())
-                    alternate_text="Visible image 1".to_string()
-                    base=ComponentProps {
-                        style: Some("width: 120px; height: 80px; border-radius: 6px; object-fit: cover;".to_string()),
-                        ..Default::default()
-                    }
-                />
-                <RadzenImage
-                    path=Some("https://picsum.photos/seed/hidden/120/80".to_string())
-                    alternate_text="Hidden — should not appear".to_string()
-                    base=ComponentProps {
-                        visible: Some(false),
-                        style: Some("width: 120px; height: 80px;".to_string()),
-                        ..Default::default()
-                    }
-                />
-                <RadzenImage
-                    path=Some("https://picsum.photos/seed/vis2/120/80".to_string())
-                    alternate_text="Visible image 2".to_string()
-                    base=ComponentProps {
-                        style: Some("width: 120px; height: 80px; border-radius: 6px; object-fit: cover;".to_string()),
-                        ..Default::default()
-                    }
-                />
-            </div>
-
-            // ── Image — Inside RadzenCard ─────────────────────────────────
             <h2 style="margin-top: 2rem;">"Image — Inside RadzenCard"</h2>
-            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-                "Mirrors the common usage pattern from the C# XML doc comments: "
-                "RadzenImage inside a RadzenCard with RadzenText labels."
-            </p>
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start;">
                 <RadzenCard variant=Variant::Outlined>
                     <div style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; width: 180px;">
@@ -1023,54 +735,17 @@ pub fn Home() -> impl IntoView {
                         <RadzenText text_style=TextStyle::Body2 text=Some("$29.99".to_string()) />
                     </div>
                 </RadzenCard>
-                <RadzenCard variant=Variant::Outlined>
-                    <div style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; width: 180px;">
-                        <RadzenImage
-                            path=Some("https://picsum.photos/seed/card2/180/120".to_string())
-                            alternate_text="Another product".to_string()
-                            base=ComponentProps {
-                                style: Some("width: 100%; height: 120px; object-fit: cover; border-radius: 4px;".to_string()),
-                                ..Default::default()
-                            }
-                        />
-                        <RadzenText text_style=TextStyle::H6 text=Some("Another Item".to_string()) />
-                        <RadzenText text_style=TextStyle::Body2 text=Some("$49.99".to_string()) />
-                    </div>
-                </RadzenCard>
-                <RadzenAlert
-                    alert_style=AlertStyle::Info
-                    title=Some("Information".to_string())
-                    text=Some("This is an informational message.".to_string())
-                />
-                // Dismissible success alert
-                <RadzenAlert
-                    alert_style=AlertStyle::Success
-                    variant=Variant::Flat
-                    shade=Shade::Lighter
-                    title=Some("Done!".to_string())
-                    text=Some("Your changes have been saved.".to_string())
-                    on_close=Some(std::sync::Arc::new(|| log::info!("alert closed")))
-                />
-                // No icon, no close button (e.g. event console rows)
-                <RadzenAlert
-                    show_icon=false
-                    allow_close=false
-                    alert_style=AlertStyle::Warning
-                    size=AlertSize::ExtraSmall
-                    shade=Shade::Lighter
-                    variant=Variant::Flat
-                >
-                <span>"Custom rich content inside the alert."</span>
-                </RadzenAlert>
+            </div>
 
-                // Danger, outlined, with custom icon
-                <RadzenAlert
-                    alert_style=AlertStyle::Danger
-                    variant=Variant::Outlined
-                    icon=Some("bug_report".to_string())
-                    title=Some("Error".to_string())
-                    text=Some("Something went wrong. Please try again.".to_string())
-                />
+            // ── Alert examples ────────────────────────────────────────────────
+            <h2 style="margin-top: 2rem;">"Alert — Styles"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <RadzenAlert alert_style=AlertStyle::Info    title=Some("Information".to_string()) text=Some("This is an informational message.".to_string()) />
+                <RadzenAlert alert_style=AlertStyle::Success variant=Variant::Flat shade=Shade::Lighter title=Some("Done!".to_string()) text=Some("Your changes have been saved.".to_string()) on_close=Some(std::sync::Arc::new(|| log::info!("alert closed"))) />
+                <RadzenAlert show_icon=false allow_close=false alert_style=AlertStyle::Warning size=AlertSize::ExtraSmall shade=Shade::Lighter variant=Variant::Flat>
+                    <span>"Custom rich content inside the alert."</span>
+                </RadzenAlert>
+                <RadzenAlert alert_style=AlertStyle::Danger variant=Variant::Outlined icon=Some("bug_report".to_string()) title=Some("Error".to_string()) text=Some("Something went wrong. Please try again.".to_string()) />
             </div>
         </ErrorBoundary>
     }

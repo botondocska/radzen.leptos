@@ -3,7 +3,7 @@
 /// For `Variant::Filled` this shifts the background color darker or lighter.
 /// For `Variant::Outlined`, `Flat`, and `Text` it shifts the text/border
 /// color tone instead (background is transparent or near-transparent).
-#[derive(Clone, PartialEq, Default, Debug)]
+#[derive(Clone, Copy, PartialEq, Default, Debug)]
 pub enum Shade {
     /// Most washed-out — uses the `lighter` color token.
     Lighter,

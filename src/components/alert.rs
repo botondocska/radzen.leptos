@@ -1,15 +1,15 @@
 //! RadzenAlert component — mirrors C# Radzen.Blazor.RadzenAlert.
 //!
 //! # CSS class order (mirrors Blazor exactly)
-//! `rz-alert rz-alert-{size} rz-variant-{v} rz-shade-{s} rz-{style} [caller-class]`
+//! `rz-alert rz-alert-{size} rz-variant-{v} rz-{style} rz-shade-{s} [caller-class]`
 //!
 //! Blazor `GetComponentCssClass()`:
 //! ```csharp
 //! ClassList.Create("rz-alert")
 //!     .Add($"rz-alert-{GetAlertSize()}")   // xs|sm|md|lg
 //!     .AddVariant(Variant)
-//!     .AddShade(Shade)
 //!     .Add($"rz-{AlertStyle.ToString().ToLowerInvariant()}")
+//!     .AddShade(Shade)
 //!     .ToString()
 //! ```
 //! `RadzenComponent.GetCssClass()` then appends any caller `class` attribute last.
@@ -25,9 +25,17 @@
 //! | `GetCloseButtonShade()`  | Light/Lighter shade → `Shade::Darker`, else `Shade::Default`   |
 //! | `GetCloseButtonStyle()`  | Light/Lighter shade: each AlertStyle → matching ButtonStyle     |
 //! |                          | Other shades: Light/Base alert → `Dark`, else `Light` button   |
+//!
+//! # Why Shade / Variant / ButtonStyle derive Copy
+//! All three are simple C-like enums with no heap data.  Blazor accesses them
+//! as C# properties (reference semantics) so they can be read multiple times
+//! without moving.  Rust requires explicit `Copy` to allow the same pattern.
+//! Deriving `Copy` is idiomatic for fieldless enums and is the right solution
+//! here — it avoids `.clone()` noise and matches the intent of the Blazor code.
 
 use crate::components::{
-    AlertSize, AlertStyle, ButtonSize, ButtonStyle, ClassList, RadzenButton, Shade, Variant,
+    AlertSize, AlertStyle, ButtonSize, ButtonStyle, ClassList, RadzenButton, RadzenIcon, Shade,
+    Variant,
     base_component::{ComponentProps, use_radzen_base},
 };
 use leptos::prelude::*;
@@ -105,11 +113,21 @@ pub fn RadzenAlert(
     }
 
     // ── CSS class ─────────────────────────────────────────────────────────────
+    // Mirrors GetComponentCssClass() exactly:
+    //   ClassList.Create("rz-alert")
+    //       .Add($"rz-alert-{GetAlertSize()}")
+    //       .AddVariant(Variant)
+    //       .AddShade(Shade)
+    //       .Add($"rz-{AlertStyle.ToString().ToLowerInvariant()}")
+    // then GetCssClass() appends caller class last.
+    //
+    // `shade` and `variant` are Copy so they can be used here and again in the
+    // close-button helpers below without needing .clone().
     let css_class = ClassList::create("rz-alert")
         .add_class(format!("rz-alert-{}", size.css_suffix()))
         .add_variant(variant)
-        .add_shade(shade)
         .add_class(format!("rz-{}", alert_style.as_str()))
+        .add_shade(shade)
         .add_caller_class(
             base.attrs
                 .as_ref()
@@ -135,39 +153,43 @@ pub fn RadzenAlert(
     let leave_cb = handle.on_mouse_leave.clone();
     let ctx_cb = handle.on_context_menu.clone();
 
-    // ── Resolved icon name — mirrors GetIcon() ────────────────────────────────
+    // ── Resolved icon — mirrors GetIcon() ────────────────────────────────────
+    // Blazor: !string.IsNullOrEmpty(Icon) ? Icon : AlertStyle switch { … }
     let icon_name = icon.unwrap_or_else(|| alert_style.default_icon().to_string());
-    let icon_style = icon_color
-        .as_deref()
-        .map(|c| format!("color:{};", c))
-        .unwrap_or_default();
 
-    // ── Close button helpers ──────────────────────────────────────────────────
+    // ── Close button helpers — mirrors C# private methods ────────────────────
+    // `shade` and `alert_style` are Copy so multiple reads are fine.
+    //
+    // GetCloseButtonSize(): ExtraSmall alert → ExtraSmall button, else Small.
     let close_button_size = if size == AlertSize::ExtraSmall {
         ButtonSize::ExtraSmall
     } else {
         ButtonSize::Small
     };
-    let close_button_shade = if shade.clone() == Shade::Light || shade == Shade::Lighter {
+
+    // GetCloseButtonShade(): Light/Lighter shade → Darker, else Default.
+    let close_button_shade = if shade == Shade::Light || shade == Shade::Lighter {
         Shade::Darker
     } else {
         Shade::Default
     };
+
+    // GetCloseButtonStyle(): depends on both shade and alert_style.
     let close_button_style = if shade == Shade::Light || shade == Shade::Lighter {
         match alert_style {
-            AlertStyle::Success   => ButtonStyle::Success,
-            AlertStyle::Danger    => ButtonStyle::Danger,
-            AlertStyle::Warning   => ButtonStyle::Warning,
-            AlertStyle::Info      => ButtonStyle::Info,
-            AlertStyle::Primary   => ButtonStyle::Primary,
+            AlertStyle::Success => ButtonStyle::Success,
+            AlertStyle::Danger => ButtonStyle::Danger,
+            AlertStyle::Warning => ButtonStyle::Warning,
+            AlertStyle::Info => ButtonStyle::Info,
+            AlertStyle::Primary => ButtonStyle::Primary,
             AlertStyle::Secondary => ButtonStyle::Secondary,
             AlertStyle::Light | AlertStyle::Base => ButtonStyle::Dark,
-            AlertStyle::Dark      => ButtonStyle::Light,
+            AlertStyle::Dark => ButtonStyle::Light,
         }
     } else {
         match alert_style {
             AlertStyle::Light | AlertStyle::Base => ButtonStyle::Dark,
-            _                                    => ButtonStyle::Light,
+            _ => ButtonStyle::Light,
         }
     };
 
@@ -180,33 +202,77 @@ pub fn RadzenAlert(
             let cb_vis = on_visible_changed_cb.clone();
             Box::pin(async move {
                 visible.set(false);
-                if let Some(cb) = cb_close { cb(); }
-                if let Some(cb) = cb_vis { cb(false); }
+                if let Some(cb) = cb_close {
+                    cb();
+                }
+                if let Some(cb) = cb_vis {
+                    cb(false);
+                }
             })
         });
 
-    // ── Store close-button props in signals so view! closures stay Fn ─────────
-    // The view! macro turns each `{...}` expression into a closure that must be
-    // Fn + Send + Sync.  Non-Copy enum values (ButtonStyle, ButtonSize, Shade)
-    // captured by move would make those closures FnOnce.  Wrapping them in
-    // StoredValue gives us a Copy handle that reads them back each time.
-    let close_style_sv   = StoredValue::new(close_button_style);
-    let close_shade_sv   = StoredValue::new(close_button_shade);
-    let close_size_sv    = StoredValue::new(close_button_size);
-    let handler_sv       = StoredValue::new(on_close_handler);
-    let icon_name_sv     = StoredValue::new(icon_name);
-    let icon_style_sv    = StoredValue::new(icon_style);
-    let title_sv         = StoredValue::new(title);
-    let text_sv          = StoredValue::new(text);
-    let css_class_sv     = StoredValue::new(css_class);
-    let handle_id_sv     = StoredValue::new(handle_id);
+    // ── Build all static children eagerly before the element builder ─────────
+    //
+    // Leptos requires closures passed to .child() to be FnMut (callable many
+    // times). A closure that moves a non-Copy value (like an Arc) out of its
+    // environment is FnOnce — it can only run once. The solution is to build
+    // static content (guarded by non-reactive bools like allow_close /
+    // show_icon) as Option<AnyView> values *before* the builder chain, then
+    // pass them as plain values (not closures) to .child(). Only content that
+    // genuinely needs to re-run on reactive signal changes stays as a closure.
+
+    // @if (AllowClose) { <RadzenButton … /> }
+    let close_button_child: Option<AnyView> = allow_close.then(|| {
+        view! {
+            <RadzenButton
+                icon=Some("close".to_string())
+                variant=Variant::Text
+                button_style=close_button_style
+                shade=close_button_shade
+                size=close_button_size
+                on_click=Some(on_close_handler)
+            />
+        }
+        .into_any()
+    });
+
+    // @if (ShowIcon) { <RadzenIcon … class="rz-alert-icon" /> }
+    let icon_child: Option<AnyView> = show_icon.then(|| {
+        let mut icon_base = ComponentProps::default();
+        let mut attrs = std::collections::HashMap::new();
+        attrs.insert("class".to_string(), "rz-alert-icon".to_string());
+        icon_base.attrs = Some(attrs);
+        view! {
+            <RadzenIcon
+                base=icon_base
+                icon=Some(icon_name)
+                icon_color=icon_color
+            />
+        }
+        .into_any()
+    });
+
+    // @if (!string.IsNullOrEmpty(Title)) { <div class="rz-alert-title">@Title</div> }
+    let title_child: Option<AnyView> = title.map(|t| {
+        leptos::html::div()
+            .attr("class", "rz-alert-title")
+            .child(t)
+            .into_any()
+    });
+
+    // ── StoredValues only for data used inside reactive (FnMut) closures ──────
+    // `children` and `text` live inside the rz-alert-content closure which
+    // Leptos may re-invoke reactively. Everything else was consumed above.
+    let text_sv = StoredValue::new(text);
+    let css_class_sv = StoredValue::new(css_class);
+    let handle_id_sv = StoredValue::new(handle_id);
 
     Some(
         leptos::html::div()
-            .attr("id",         move || handle_id_sv.get_value())
-            .attr("class",      move || css_class_sv.get_value())
-            .attr("style",      style)
-            .attr("aria-live",  "polite")
+            .attr("id", move || handle_id_sv.get_value())
+            .attr("class", move || css_class_sv.get_value())
+            .attr("style", style)
+            .attr("aria-live", "polite")
             .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
             .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
             .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev))
@@ -214,59 +280,24 @@ pub fn RadzenAlert(
                 // rz-alert-item
                 leptos::html::div()
                     .attr("class", "rz-alert-item")
-                    .child(move || {
-                        // Icon — mirrors @if (ShowIcon)
-                        show_icon.then(|| {
-                            leptos::html::i()
-                                .attr("class", "notranslate rzi rz-alert-icon")
-                                .attr("style", icon_style_sv.get_value())
-                                .child(icon_name_sv.get_value())
-                        })
-                    })
+                    .child(icon_child)
                     .child(
                         // rz-alert-message
                         leptos::html::div()
                             .attr("class", "rz-alert-message")
-                            .child(move || {
-                                // Title — mirrors @if (!string.IsNullOrEmpty(Title))
-                                title_sv.get_value().map(|t| {
-                                    leptos::html::div()
-                                        .attr("class", "rz-alert-title")
-                                        .child(t)
-                                })
-                            })
+                            .child(title_child)
                             .child(
-                                // rz-alert-content — ChildContent ?? Text
-                                leptos::html::div()
-                                    .attr("class", "rz-alert-content")
-                                    .child(move || {
-                                        match children.as_ref() {
-                                            Some(c) => c().into_any(),
-                                            None    => text_sv
-                                                        .get_value()
-                                                        .unwrap_or_default()
-                                                        .into_any(),
-                                        }
-                                    }),
+                                // rz-alert-content — @(ChildContent ?? @Text)
+                                leptos::html::div().attr("class", "rz-alert-content").child(
+                                    move || match children.as_ref() {
+                                        Some(c) => c().into_any(),
+                                        None => text_sv.get_value().unwrap_or_default().into_any(),
+                                    },
+                                ),
                             ),
                     ),
             )
-            .child(move || {
-                // Close button — mirrors @if (AllowClose)
-                allow_close.then(|| {
-                    let handler = handler_sv.get_value();
-                    view! {
-                        <RadzenButton
-                            icon=Some("close".to_string())
-                            variant=Variant::Text
-                            button_style=close_style_sv.get_value()
-                            shade=close_shade_sv.get_value()
-                            size=close_size_sv.get_value()
-                            on_click=Some(handler)
-                        />
-                    }
-                })
-            }),
+            .child(close_button_child),
     )
     .into_any()
 }

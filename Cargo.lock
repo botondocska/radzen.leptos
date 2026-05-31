@@ -1475,11 +1475,21 @@ dependencies = [
  "leptos_meta",
  "leptos_router",
  "log",
+ "radzen-macros",
  "sys-locale",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "web-sys",
+]
+
+[[package]]
+name = "radzen-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

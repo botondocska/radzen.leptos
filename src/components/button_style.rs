@@ -3,7 +3,7 @@
 /// Determines the button's color scheme based on its purpose.
 /// Maps to a set of Tailwind color tokens defined in `tailwind.config.js`
 /// under the `colors` key (e.g. `primary`, `secondary`, `danger`, …).
-#[derive(Clone, PartialEq, Default, Debug)]
+#[derive(Clone, Copy, PartialEq, Default, Debug)]
 pub enum ButtonStyle {
     /// Main action in a form or dialog (e.g. "Save"). Default.
     #[default]

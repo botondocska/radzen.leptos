@@ -2,7 +2,7 @@
 ///
 /// Controls how the color style is expressed — as a solid fill,
 /// a subtle fill, a border outline, or text only.
-#[derive(Clone, PartialEq, Default, Debug)]
+#[derive(Clone, Copy, PartialEq, Default, Debug)]
 pub enum Variant {
     /// Solid background in the style color, white text, no border. Default.
     #[default]

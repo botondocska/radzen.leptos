@@ -2,6 +2,7 @@ pub mod alert;
 pub mod alert_size;
 pub mod alert_style;
 pub mod align_items;
+pub mod auto_complete_type;
 pub mod badge;
 pub mod badge_style;
 pub mod base_component;
@@ -24,6 +25,7 @@ pub mod stack;
 pub mod tag_name;
 pub mod text;
 pub mod text_align;
+pub mod text_box;
 pub mod text_style;
 pub mod variant;
 
@@ -34,13 +36,11 @@ pub use alert::RadzenAlert;
 pub use alert_size::AlertSize;
 pub use alert_style::AlertStyle;
 pub use align_items::AlignItems;
+pub use auto_complete_type::AutoCompleteType;
 pub use badge::RadzenBadge;
 pub use badge_style::BadgeStyle;
-pub use base_component::{
-    ComponentProps, RadzenBaseHandle, RadzenComponent, RadzenLocaleContext, provide_locale_context,
-    use_radzen_base,
-};
-pub use button::{AsyncClickFuture, AsyncClickHandler, RadzenButton};
+pub use base_component::ComponentProps;
+pub use button::{AsyncClickHandler, RadzenButton};
 pub use button_size::ButtonSize;
 pub use button_style::ButtonStyle;
 pub use button_type::ButtonType;
@@ -59,5 +59,6 @@ pub use stack::RadzenStack;
 pub use tag_name::TagName;
 pub use text::RadzenText;
 pub use text_align::TextAlign;
+pub use text_box::RadzenTextBox;
 pub use text_style::TextStyle;
 pub use variant::Variant;

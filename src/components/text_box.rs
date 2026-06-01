@@ -15,8 +15,8 @@
 //!
 //! # Two render modes — mirrors `Immediate` prop
 //! ```
-//! Immediate = true  → listens on `oninput`  (value updates as the user types)
-//! Immediate = false → listens on `onchange` (value updates on blur / Enter)
+//! Immediate = true  → listens on `oninput`  AND `onchange` (value updates as the user types)
+//! Immediate = false → listens on `onchange` only (value updates on blur / Enter)
 //! ```
 //!
 //! # `id` resolution — mirrors `GetId()` override
@@ -27,6 +27,14 @@
 //! # `Trim` behaviour
 //! When enabled, leading and trailing whitespace is stripped from the value
 //! whenever it changes — mirrors Blazor's `SetValue()`.
+//!
+//! # `aria-autocomplete` attribute
+//! Mirrors Blazor's `aria-autocomplete="@AriaAutoCompleteAttribute"`.
+//! The value is derived from `AutoCompleteType` via `aria_autocomplete_value()`.
+//!
+//! # `rz-state-empty` reactivity
+//! The class is re-evaluated reactively via a `Memo` so it stays current
+//! as the user types — mirrors Blazor's full re-render on each value change.
 //!
 //! # Visibility
 //! Mirrors `@if (Visible)` — element fully omitted, not `display:none`.
@@ -45,12 +53,29 @@ use crate::components::{
 use leptos::prelude::*;
 use std::sync::Arc;
 
+/// Returns the ARIA autocomplete attribute value for a given `AutoCompleteType`.
+///
+/// Mirrors Blazor's `AriaAutoCompleteAttribute` on `FormComponentWithAutoComplete<T>`.
+/// The ARIA attribute conveys the autocomplete behaviour to assistive technologies:
+/// - `"none"` when autocomplete is off
+/// - `"inline"` / `"list"` / `"both"` for specific semantic types
+/// - `"both"` as the general default when autocomplete is on
+fn aria_autocomplete_value(ac: &AutoCompleteType) -> &'static str {
+    match ac {
+        AutoCompleteType::Off => "none",
+        AutoCompleteType::On => "both",
+        // All named semantic types (email, username, tel, …) behave like "both"
+        // — the browser's autofill popup both completes inline and shows a list.
+        _ => "both",
+    }
+}
+
 /// RadzenTextBox component.
 ///
 /// A styled single-line text input that supports two-way signal binding,
 /// optional immediate updates, whitespace trimming, and all standard
 /// HTML input attributes (`disabled`, `readonly`, `placeholder`,
-/// `maxlength`, `autocomplete`, `name`, `tabindex`).
+/// `maxlength`, `autocomplete`, `aria-autocomplete`, `name`, `tabindex`).
 ///
 /// # Two-way binding
 /// Pass an `RwSignal<String>` via `value`. The component reads from and
@@ -151,45 +176,56 @@ pub fn RadzenTextBox(
     // component still works in uncontrolled mode.
     let value_signal = value.unwrap_or_else(|| RwSignal::new(String::new()));
 
-    // ── CSS class ─────────────────────────────────────────────────────────────
-    // Mirrors GetClassList("rz-textbox")
-    //     .AddDisabled(Disabled)
-    //     .Add("rz-state-empty", !HasValue)  ← HasValue = !value.is_empty()
-    // then GetCssClass appends caller class last.
-    //
-    // "rz-state-empty" is derived from the *initial* value here (static
-    // build). A reactive class string would need a memo; Blazor re-renders
-    // the whole component on change, so the class is always current. We keep
-    // it static for now, consistent with how other components handle CSS.
-    let initial_empty = value_signal.get_untracked().is_empty();
-    let css_class = ClassList::create("rz-textbox")
-        .add_disabled(disabled)
-        .add("rz-state-empty", initial_empty)
-        .add_caller_class(
-            base.attrs
-                .as_ref()
-                .and_then(|a| a.get("class"))
-                .map(String::as_str),
-        )
-        .finish();
+    // ── Derived ARIA / autocomplete attribute strings ─────────────────────────
+    let autocomplete_str = auto_complete.as_str().to_string();
+    let aria_autocomplete_str = aria_autocomplete_value(&auto_complete).to_string();
 
     // ── Attribute values ───────────────────────────────────────────────────────
-    let style = base.style.clone().unwrap_or_default();
+    let style = base.style.unwrap_or_default();
     // id: Name wins over the auto-generated id — mirrors GetId() override.
-    let input_id = name.clone().unwrap_or_else(|| handle.id.clone());
-    let autocomplete_str = auto_complete.as_str().to_string();
+    let input_id = name.clone().unwrap_or_else(|| handle.id);
     let effective_tab_index = if disabled { -1 } else { tab_index };
 
+    // ── CSS class — reactive via Memo ─────────────────────────────────────────
+    // `rz-state-empty` must track the live signal so it updates as the user
+    // types — mirrors Blazor's full re-render which recomputes HasValue on
+    // every change. A Memo re-runs only when value_signal changes, which is
+    // exactly what we want.
+    //
+    // The other classes (disabled, caller) are static for the component
+    // lifetime, so we compute them once and move into the Memo closure.
+    let static_class_prefix = ClassList::create("rz-textbox")
+        .add_disabled(disabled)
+        .finish();
+
+    let caller_class = base
+        .attrs
+        .as_ref()
+        .and_then(|a| a.get("class"))
+        .cloned()
+        .unwrap_or_default();
+
+    let css_class = Memo::new(move |_| {
+        let is_empty = value_signal.get().is_empty();
+        let empty_class = if is_empty { " rz-state-empty" } else { "" };
+        let caller = if caller_class.is_empty() {
+            String::new()
+        } else {
+            format!(" {}", caller_class)
+        };
+        format!("{}{}{}", static_class_prefix, empty_class, caller)
+    });
+
     // ── Event handlers ────────────────────────────────────────────────────────
-    let enter_cb = handle.on_mouse_enter.clone();
-    let leave_cb = handle.on_mouse_leave.clone();
-    let ctx_cb = handle.on_context_menu.clone();
+    let enter_cb = handle.on_mouse_enter;
+    let leave_cb = handle.on_mouse_leave;
+    let ctx_cb = handle.on_context_menu;
 
     // Shared change logic — mirrors SetValue():
     //   Value = value; if (Trim) Value = Value.Trim();
     //   ValueChanged.InvokeAsync(Value);   ← writes signal
     //   Change.InvokeAsync(Value);         ← fires on_change callback
-    let on_change_cb = on_change.clone();
+    let on_change_cb = on_change;
     let commit = Arc::new(move |raw: String| {
         let mut v = raw;
         if trim {
@@ -202,6 +238,8 @@ pub fn RadzenTextBox(
     });
 
     // oninput handler (Immediate = true)
+    // Blazor Immediate branch: @bind:event="oninput" @onchange="@OnChange"
+    // Both oninput and onchange fire SetValue when Immediate = true.
     let commit_input = commit.clone();
     let on_input = move |ev: web_sys::Event| {
         use web_sys::wasm_bindgen::JsCast;
@@ -213,7 +251,8 @@ pub fn RadzenTextBox(
         }
     };
 
-    // onchange handler (Immediate = false)
+    // onchange handler — fires in both modes, mirrors Blazor's `@onchange="@OnChange"`
+    // which is present in both the Immediate and non-Immediate razor branches.
     let commit_change = commit.clone();
     let on_change_ev = move |ev: web_sys::Event| {
         use web_sys::wasm_bindgen::JsCast;
@@ -225,19 +264,18 @@ pub fn RadzenTextBox(
         }
     };
 
-    // ── Render — two branches mirroring the Immediate flag ────────────────────
-    // Blazor:
-    //   if (Immediate) { bind on oninput }
-    //   else           { bind on onchange (value="@Value") }
+    // ── Render ────────────────────────────────────────────────────────────────
+    // Mirrors Blazor's single `<input>` element. Both modes share the same
+    // attributes; the difference is whether oninput also commits (Immediate).
     //
-    // In Leptos we always set `value` as a derived signal so the input stays
-    // in sync with the signal (controlled input pattern).
+    // `prop:value` (DOM property, not HTML attribute) keeps the cursor position
+    // stable on re-render — same as Blazor's @bind:get / @bind:set pattern.
     Some(
         leptos::html::input()
             .attr("id", input_id)
             .attr("type", "text")
             .attr("name", name)
-            .attr("class", css_class)
+            .attr("class", move || css_class.get())
             .attr("style", style)
             .attr("placeholder", placeholder)
             .attr("disabled", disabled)
@@ -245,25 +283,25 @@ pub fn RadzenTextBox(
             .attr("tabindex", effective_tab_index.to_string())
             .attr("maxlength", max_length.map(|n| n.to_string()))
             .attr("autocomplete", autocomplete_str)
+            // Mirrors: aria-autocomplete="@AriaAutoCompleteAttribute"
+            .attr("aria-autocomplete", aria_autocomplete_str)
             // Controlled value — always reflects the signal.
-            // Uses `prop:value` (DOM property, not attribute) so the browser
-            // cursor position is preserved on re-render — same as Blazor's
-            // two-way @bind:get / @bind:set pattern.
             .prop("value", move || value_signal.get())
-            // Wire the correct event based on Immediate flag.
+            // Wire oninput — commits immediately when Immediate = true.
+            // Mirrors Blazor Immediate branch: @bind:event="oninput"
             .on(leptos::ev::input, move |ev| {
                 if immediate {
                     on_input(ev.into());
                 }
             })
+            // Wire onchange — commits in both modes.
+            // Mirrors Blazor's @onchange="@OnChange" present in both branches.
             .on(leptos::ev::change, move |ev| {
-                if !immediate {
-                    on_change_ev(ev.into());
-                }
+                on_change_ev(ev.into());
             })
             .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
             .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
-            .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev)),
+            .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev))
     )
     .into_any()
 }

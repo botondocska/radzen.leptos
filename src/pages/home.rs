@@ -773,6 +773,288 @@ pub fn Home() -> impl IntoView {
                 </RadzenAlert>
                 <RadzenAlert alert_style=AlertStyle::Danger variant=Variant::Outlined icon=Some("bug_report".to_string()) title=Some("Error".to_string()) text=Some("Something went wrong. Please try again.".to_string()) />
             </div>
+            // ── TextBox examples ────────────────────────────────────────────────
+
+            <h2 style="margin-top: 2rem;">"TextBox — Basic"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenTextBox />
+                <RadzenTextBox
+                    placeholder=Some("Enter username".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextBox — Bound Value"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenTextBox
+                    value=Some(username)
+                    placeholder=Some("Username".to_string())
+                />
+
+                <RadzenText
+                    text=Some(format!("Current value: {}", username.get()))
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextBox — Immediate Updates"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenTextBox
+                    value=Some(live_search)
+                    immediate=true
+                    placeholder=Some("Search...".to_string())
+                />
+
+                <RadzenText
+                    text=Some(format!("Live: {}", live_search.get()))
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextBox — Trim"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenTextBox
+                    trim=true
+                    placeholder=Some("Whitespace trimmed on change".to_string())
+                    on_change=Some(std::sync::Arc::new(|v| {
+                        log::info!("Stored value = '{}'", v);
+                    }))
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextBox — Disabled and ReadOnly"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenTextBox
+                    value=Some(RwSignal::new("Disabled textbox".to_string()))
+                    disabled=true
+                />
+
+                <RadzenTextBox
+                    value=Some(RwSignal::new("Read only textbox".to_string()))
+                    read_only=true
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextBox — Max Length"</h2>
+            <div style="max-width: 320px;">
+                <RadzenTextBox
+                    max_length=Some(20)
+                    placeholder=Some("Maximum 20 characters".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextBox — Custom Styling"</h2>
+            <div style="max-width: 320px;">
+                <RadzenTextBox
+                    placeholder=Some("Styled textbox".to_string())
+                    base=ComponentProps {
+                        style: Some(
+                            "border: 2px solid var(--rz-primary); border-radius: 8px;"
+                                .to_string()
+                        ),
+                        ..Default::default()
+                    }
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextBox — Name and Label"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenLabel
+                    text=Some("Email address".to_string())
+                    component=Some("email_input".to_string())
+                />
+
+                <RadzenTextBox
+                    name=Some("email_input".to_string())
+                    placeholder=Some("name@example.com".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextBox — Visibility"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenTextBox
+                    placeholder=Some("Visible textbox".to_string())
+                />
+
+                <RadzenTextBox
+                    placeholder=Some("Hidden textbox".to_string())
+                    base=ComponentProps {
+                        visible: Some(false),
+                        ..Default::default()
+                    }
+                />
+
+                <RadzenTextBox
+                    placeholder=Some("Also visible".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextBox — Login Form"</h2>
+            <RadzenCard variant=Variant::Outlined>
+                <div style="padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; width: 320px;">
+                    <RadzenLabel
+                        text=Some("Email".to_string())
+                        component=Some("login_email".to_string())
+                    />
+
+                    <RadzenTextBox
+                        name=Some("login_email".to_string())
+                        placeholder=Some("name@example.com".to_string())
+                    />
+
+                    <RadzenLabel
+                        text=Some("Password".to_string())
+                        component=Some("login_password".to_string())
+                    />
+
+                    <RadzenTextBox
+                        name=Some("login_password".to_string())
+                        placeholder=Some("Password".to_string())
+                    />
+                </div>
+            </RadzenCard>
+            // ── TextArea examples ───────────────────────────────────────────────
+
+            <h2 style="margin-top: 2rem;">"TextArea — Basic"</h2>
+            <div style="max-width: 500px;">
+                <RadzenTextArea />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Placeholder"</h2>
+            <div style="max-width: 500px;">
+                <RadzenTextArea
+                    placeholder=Some("Enter description...".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Bound Value"</h2>
+            <div style="max-width: 500px;">
+                <RadzenTextArea
+                    value=Some(description)
+                    rows=4
+                />
+
+                <RadzenText
+                    text=Some(format!("Length: {}", description.get().len()))
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Immediate Updates"</h2>
+            <div style="max-width: 500px;">
+                <RadzenTextArea
+                    value=Some(notes)
+                    rows=5
+                    immediate=true
+                    placeholder=Some("Type here...".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Rows and Cols"</h2>
+            <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 500px;">
+                <RadzenTextArea
+                    rows=2
+                    cols=20
+                    placeholder=Some("Small".to_string())
+                />
+
+                <RadzenTextArea
+                    rows=5
+                    cols=40
+                    placeholder=Some("Medium".to_string())
+                />
+
+                <RadzenTextArea
+                    rows=8
+                    cols=60
+                    placeholder=Some("Large".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Disabled and ReadOnly"</h2>
+            <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 500px;">
+                <RadzenTextArea
+                    value=Some(RwSignal::new(
+                        "Disabled text area".to_string()
+                    ))
+                    disabled=true
+                />
+
+                <RadzenTextArea
+                    value=Some(RwSignal::new(
+                        "Read only text area".to_string()
+                    ))
+                    read_only=true
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Max Length"</h2>
+            <div style="max-width: 500px;">
+                <RadzenTextArea
+                    rows=4
+                    max_length=Some(100)
+                    placeholder=Some("Maximum 100 characters".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Custom Styling"</h2>
+            <div style="max-width: 500px;">
+                <RadzenTextArea
+                    rows=5
+                    placeholder=Some("Styled text area".to_string())
+                    base=ComponentProps {
+                        style: Some(
+                            "border: 2px solid var(--rz-success); border-radius: 8px;"
+                                .to_string()
+                        ),
+                        ..Default::default()
+                    }
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Label Association"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 500px;">
+                <RadzenLabel
+                    text=Some("Description".to_string())
+                    component=Some("description".to_string())
+                />
+
+                <RadzenTextArea
+                    name=Some("description".to_string())
+                    rows=4
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Visibility"</h2>
+            <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 500px;">
+                <RadzenTextArea
+                    placeholder=Some("Visible textarea".to_string())
+                />
+
+                <RadzenTextArea
+                    placeholder=Some("Hidden textarea".to_string())
+                    base=ComponentProps {
+                        visible: Some(false),
+                        ..Default::default()
+                    }
+                />
+
+                <RadzenTextArea
+                    placeholder=Some("Also visible".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"TextArea — Feedback Form"</h2>
+            <RadzenCard variant=Variant::Outlined>
+                <div style="padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; width: 500px;">
+                    <RadzenLabel
+                        text=Some("Feedback".to_string())
+                        component=Some("feedback".to_string())
+                    />
+
+                    <RadzenTextArea
+                        name=Some("feedback".to_string())
+                        rows=6
+                        placeholder=Some("Tell us what you think...".to_string())
+                    />
+                </div>
+            </RadzenCard>
         </ErrorBoundary>
     }
 }

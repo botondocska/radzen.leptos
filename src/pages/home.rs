@@ -5,7 +5,7 @@ use crate::components::{
     AlertSize, AlertStyle, RadzenLabel, AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps,
     FlexWrap, IconStyle, ImageClickFuture, ImageClickHandler, JustifyContent, NavLinkMatch,
     Orientation, RadzenAlert, RadzenBadge, RadzenButton, RadzenCard, RadzenIcon, RadzenImage,
-    RadzenLink, RadzenStack, RadzenText, Shade, TagName, TextAlign, TextStyle, Variant,
+    RadzenLink, RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox, Shade, TagName, TextAlign, TextStyle, Variant,
 };
 
 /// Default Home Page
@@ -17,6 +17,10 @@ pub fn Home() -> impl IntoView {
     let show_success = RwSignal::new(false);
     let show_danger = RwSignal::new(false);
     let show_info = RwSignal::new(false);
+    let description = RwSignal::new(String::new());
+    let live_search = RwSignal::new(String::new());
+    let username = RwSignal::new(String::new());
+    let notes = RwSignal::new(String::new());
 
     /// Trigger an alert for `ms` milliseconds then auto-dismiss it.
     fn trigger(signal: RwSignal<bool>, ms: u32) {
@@ -786,7 +790,7 @@ pub fn Home() -> impl IntoView {
             <h2 style="margin-top: 2rem;">"TextBox — Bound Value"</h2>
             <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
                 <RadzenTextBox
-                    value=Some(username)
+                    value=username
                     placeholder=Some("Username".to_string())
                 />
 
@@ -798,7 +802,7 @@ pub fn Home() -> impl IntoView {
             <h2 style="margin-top: 2rem;">"TextBox — Immediate Updates"</h2>
             <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
                 <RadzenTextBox
-                    value=Some(live_search)
+                    value=live_search
                     immediate=true
                     placeholder=Some("Search...".to_string())
                 />
@@ -822,12 +826,12 @@ pub fn Home() -> impl IntoView {
             <h2 style="margin-top: 2rem;">"TextBox — Disabled and ReadOnly"</h2>
             <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
                 <RadzenTextBox
-                    value=Some(RwSignal::new("Disabled textbox".to_string()))
+                    value=RwSignal::new("Disabled textbox".to_string())
                     disabled=true
                 />
 
                 <RadzenTextBox
-                    value=Some(RwSignal::new("Read only textbox".to_string()))
+                    value=RwSignal::new("Read only textbox".to_string())
                     read_only=true
                 />
             </div>
@@ -927,7 +931,7 @@ pub fn Home() -> impl IntoView {
             <h2 style="margin-top: 2rem;">"TextArea — Bound Value"</h2>
             <div style="max-width: 500px;">
                 <RadzenTextArea
-                    value=Some(description)
+                    value=description
                     rows=4
                 />
 
@@ -939,7 +943,7 @@ pub fn Home() -> impl IntoView {
             <h2 style="margin-top: 2rem;">"TextArea — Immediate Updates"</h2>
             <div style="max-width: 500px;">
                 <RadzenTextArea
-                    value=Some(notes)
+                    value=notes
                     rows=5
                     immediate=true
                     placeholder=Some("Type here...".to_string())
@@ -970,16 +974,16 @@ pub fn Home() -> impl IntoView {
             <h2 style="margin-top: 2rem;">"TextArea — Disabled and ReadOnly"</h2>
             <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 500px;">
                 <RadzenTextArea
-                    value=Some(RwSignal::new(
+                    value=RwSignal::new(
                         "Disabled text area".to_string()
-                    ))
+                    )
                     disabled=true
                 />
 
                 <RadzenTextArea
-                    value=Some(RwSignal::new(
+                    value=RwSignal::new(
                         "Read only text area".to_string()
-                    ))
+                    )
                     read_only=true
                 />
             </div>

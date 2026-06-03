@@ -1,8 +1,9 @@
-# A client-side rendered (CSR) leptos port of the Radzen Blazor UI library
+# A client-side rendered (CSR) Leptos port of the Radzen Blazor UI library
 
 This was my way to begin learning Leptos... How about another webassembly framework in c next, jk. I enjoy working with both Blazor and Leptos, and I am hoping this UI library can become the home of many-many components, so everyone becomes more keen on making web based frontend a better place. - Rust can garantee so much instead of javascript, why waste all of that?
 
-The original library can be found here: https://blazor.radzen.com/
+The original Radzen library can be found here: https://blazor.radzen.com/
+And Leptos is here: https://github.com/leptos-rs/leptos
 
 ## The original workflow:
 - lets copy paste the scss files and symbols, character files:

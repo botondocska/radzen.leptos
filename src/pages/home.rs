@@ -5,7 +5,7 @@ use crate::components::{
     AlertSize, AlertStyle, AutoCompleteType, RadzenLabel, AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps,
     FlexWrap, IconStyle, ImageClickFuture, ImageClickHandler, JustifyContent, NavLinkMatch,
     Orientation, RadzenAlert, RadzenBadge, RadzenButton, RadzenCard, RadzenIcon, RadzenImage,
-    RadzenLink, RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox, RadzenPassword, Shade, TagName, TextAlign, TextStyle, Variant,
+    RadzenLink, RadzenPassword,RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox, Shade, TagName, TextAlign, TextStyle, Variant,
 };
 
 /// Default Home Page
@@ -21,6 +21,7 @@ pub fn Home() -> impl IntoView {
     let live_search = RwSignal::new(String::new());
     let username = RwSignal::new(String::new());
     let notes = RwSignal::new(String::new());
+    let password = RwSignal::new(String::new());
 
     /// Trigger an alert for `ms` milliseconds then auto-dismiss it.
     fn trigger(signal: RwSignal<bool>, ms: u32) {
@@ -908,11 +909,10 @@ pub fn Home() -> impl IntoView {
                         component=Some("login_password".to_string())
                     />
 
-                <RadzenPassword
-                    name=Some("login_password".to_string())
-                    placeholder=Some("Password".to_string())
-                    auto_complete=AutoCompleteType::CurrentPassword
-                />
+                    <RadzenTextBox
+                        name=Some("login_password".to_string())
+                        placeholder=Some("Password".to_string())
+                    />
                 </div>
             </RadzenCard>
             // ── TextArea examples ───────────────────────────────────────────────
@@ -949,7 +949,7 @@ pub fn Home() -> impl IntoView {
                     immediate=true
                     placeholder=Some("Type here...".to_string())
                 />
-                <RadzenText
+                    <RadzenText
                     text=Some(format!("Length: {}", description.get().len()))
                 />
             </div>
@@ -1063,6 +1063,78 @@ pub fn Home() -> impl IntoView {
                     />
                 </div>
             </RadzenCard>
+
+            // ── Password examples ─────────────────────────────────────────────────────
+
+            <h2 style="margin-top: 2rem;">"Password — Basic"</h2>
+            <div style="max-width: 320px;">
+                <RadzenPassword />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"Password — Placeholder"</h2>
+            <div style="max-width: 320px;">
+                <RadzenPassword
+                    placeholder=Some("Enter password".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"Password — Bound Value"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenPassword
+                    immediate=true
+                    value=password
+                    placeholder=Some("Type to bind".to_string())
+                />
+                <RadzenText text_style=TextStyle::Body2>
+                    {move || format!("Length: {}", password.get().len())}
+                </RadzenText>
+            </div>
+
+            <h2 style="margin-top: 2rem;">"Password — New vs Current"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; max-width: 320px;">
+                <RadzenLabel text=Some("New Password".to_string()) component=Some("new_pwd".to_string()) />
+                <RadzenPassword
+                    name=Some("new_pwd".to_string())
+                    placeholder=Some("Choose a password".to_string())
+                    auto_complete=AutoCompleteType::NewPassword
+                />
+                <RadzenLabel text=Some("Confirm Password".to_string()) component=Some("confirm_pwd".to_string()) />
+                <RadzenPassword
+                    name=Some("confirm_pwd".to_string())
+                    placeholder=Some("Repeat password".to_string())
+                    auto_complete=AutoCompleteType::NewPassword
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"Password — Disabled and ReadOnly"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenPassword
+                    value=RwSignal::new("disabled_value".to_string())
+                    disabled=true
+                />
+                <RadzenPassword
+                    value=RwSignal::new("readonly_value".to_string())
+                    read_only=true
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"Password — Max Length"</h2>
+            <div style="max-width: 320px;">
+                <RadzenPassword
+                    max_length=Some(16)
+                    placeholder=Some("Maximum 16 characters".to_string())
+                />
+            </div>
+
+            <h2 style="margin-top: 2rem;">"Password — Visibility"</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 320px;">
+                <RadzenPassword placeholder=Some("Visible".to_string()) />
+                <RadzenPassword
+                    placeholder=Some("Hidden".to_string())
+                    base=ComponentProps { visible: Some(false), ..Default::default() }
+                />
+                <RadzenPassword placeholder=Some("Also visible".to_string()) />
+            </div>
         </ErrorBoundary>
     }
 }

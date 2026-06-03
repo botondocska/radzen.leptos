@@ -225,38 +225,50 @@ pub fn RadzenPassword(
         }
     };
 
-    // ── Render ────────────────────────────────────────────────────────────────
-    // The only difference from RadzenTextBox: `type="password"` instead of
-    // `type="text"`. The browser handles masking automatically.
-    let el = leptos::html::input()
-        .attr("id", input_id)
-        .attr("type", "password")
-        .attr("name", name)
-        .attr("class", move || css_class.get())
-        .attr("style", style)
-        .attr("placeholder", placeholder)
-        .attr("disabled", disabled)
-        .attr("readonly", read_only)
-        .attr("tabindex", effective_tab_index.to_string())
-        .attr("maxlength", max_length.map(|n| n.to_string()))
-        .attr("autocomplete", autocomplete_str)
-        .attr("aria-autocomplete", aria_autocomplete_str)
-        .prop("value", move || value_signal.get())
-        .on(leptos::ev::input, move |ev| {
-            if immediate {
-                on_input(ev.into());
+        // ── Render ────────────────────────────────────────────────────────────────
+    let node_ref = NodeRef::<leptos::html::Input>::new();
+
+    if !extra_attrs.is_empty() {
+        let attrs_clone = extra_attrs.clone();
+        Effect::new(move |_| {
+            if let Some(el) = node_ref.get() {
+                use web_sys::wasm_bindgen::JsCast;
+                if let Some(el) = el.dyn_ref::<web_sys::HtmlElement>() {
+                    for (k, v) in &attrs_clone {
+                        el.set_attribute(k, v).ok();
+                    }
+                }
             }
-        })
-        .on(leptos::ev::change, move |ev| {
-            on_change_ev(ev.into());
-        })
-        .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
-        .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
-        .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev));
+        });
+    }
 
-    let el = extra_attrs
-        .into_iter()
-        .fold(el, |el, (k, v)| el.attr(k, v));
-
-    Some(el).into_any()
+    Some(
+        leptos::html::input()
+            .node_ref(node_ref)
+            .attr("id", input_id)
+            .attr("type", "password")
+            .attr("name", name)
+            .attr("class", move || css_class.get())
+            .attr("style", style)
+            .attr("placeholder", placeholder)
+            .attr("disabled", disabled)
+            .attr("readonly", read_only)
+            .attr("tabindex", effective_tab_index.to_string())
+            .attr("maxlength", max_length.map(|n| n.to_string()))
+            .attr("autocomplete", autocomplete_str)
+            .attr("aria-autocomplete", aria_autocomplete_str)
+            .prop("value", move || value_signal.get())
+            .on(leptos::ev::input, move |ev| {
+                if immediate {
+                    on_input(ev.into());
+                }
+            })
+            .on(leptos::ev::change, move |ev| {
+                on_change_ev(ev.into());
+            })
+            .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
+            .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
+            .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev)),
+    )
+    .into_any()
 }

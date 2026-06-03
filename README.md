@@ -10,4 +10,4 @@ And Leptos is here: https://github.com/leptos-rs/leptos
 - The components are c# codes and razor files, with lots of inline css.
 - Since both frameworks are using webassembly, and both rust and C# are typesafe languages, its easier to make the similar components with similar logic.
 - Optimize, to make ease of use, and the library itself easier.
-- Perhaps try to switch from scss to tailwind since its way more lightweight.
+- Perhaps try to make a copy of the project instead of scss to tailwind since its way more lightweight.

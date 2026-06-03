@@ -248,6 +248,7 @@ pub fn RadzenDropDown(
     // ── select_item ───────────────────────────────────────────────────────────
     // Arc so the FnMut panel closure can clone it per item without moving it out.
     let on_change_cb = Arc::new(on_change);
+    let on_change_cb2 = on_change_cb.clone(); 
     let select_item = Arc::new(move |item_value: String| {
         if disabled || read_only {
             return;
@@ -278,7 +279,6 @@ pub fn RadzenDropDown(
     });
 
     // ── select_all ────────────────────────────────────────────────────────────
-    let on_change_cb2 = on_change_cb.clone();
     let data_sv2 = StoredValue::new(data.clone());
     let select_all = Arc::new(move || {
         if let Some(multi_sig) = value_multiple {

@@ -17,7 +17,6 @@
 //!      tabindex="0" role="listbox" aria-expanded="false"
 //!      onclick=… onkeydown=… onblur=…>
 //!
-//!   <!-- Trigger / selected label row -->
 //!   <div class="rz-helper-hidden-accessible">
 //!     <input type="text" readonly aria-haspopup="listbox" … />
 //!   </div>
@@ -26,9 +25,7 @@
 //!     <span class="notranslate rz-button-icon-left rzi rzi-chevron-down"></span>
 //!   </span>
 //!
-//!   <!-- Popup panel -->
 //!   @if open {
-//!     <div class="rz-overlay rz-overlay-visible" onclick=close_on_overlay />
 //!     <div class="rz-dropdown-panel rz-shadow-1">
 //!       @if allow_filtering {
 //!         <div class="rz-dropdown-filter-container">
@@ -208,7 +205,36 @@ pub fn RadzenDropDown(
     let style = base.style.clone().unwrap_or_default();
     let handle_id = handle.id.clone();
 
-    // ── Selection helpers ─────────────────────────────────────────────────────
+    // ── selected_label ────────────────────────────────────────────────────────
+    // Shared between the hidden-input .prop() and the visible label .child().
+    // Wrapping in Arc<Fn> lets both closures clone it instead of moving it.
+    let data_sv = StoredValue::new(data.clone());
+    let selected_label: Arc<dyn Fn() -> String + Send + Sync> =
+        Arc::new(move || -> String {
+            let items = data_sv.get_value();
+            if multiple {
+                let selected = value_multiple.map(|s| s.get()).unwrap_or_default();
+                if selected.is_empty() {
+                    return String::new();
+                }
+                selected
+                    .iter()
+                    .filter_map(|v| items.iter().find(|i| &i.value == v))
+                    .map(|i| i.label.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            } else {
+                let val = value.map(|s| s.get()).unwrap_or_default();
+                items
+                    .iter()
+                    .find(|i| i.value == val)
+                    .map(|i| i.label.clone())
+                    .unwrap_or_default()
+            }
+        });
+
+    // ── is_selected ───────────────────────────────────────────────────────────
+    // Pure read; signals are Copy — no move issues.
     let is_selected = move |item_value: &str| -> bool {
         if multiple {
             value_multiple
@@ -219,38 +245,10 @@ pub fn RadzenDropDown(
         }
     };
 
-    // The label displayed in the trigger.
-    let selected_label = {
-        let data_clone = data.clone();
-        move || -> String {
-            if multiple {
-                let selected = value_multiple
-                    .map(|s| s.get())
-                    .unwrap_or_default();
-                if selected.is_empty() {
-                    return String::new();
-                }
-                selected
-                    .iter()
-                    .filter_map(|v| data_clone.iter().find(|i| &i.value == v))
-                    .map(|i| i.label.clone())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            } else {
-                let val = value.map(|s| s.get()).unwrap_or_default();
-                data_clone
-                    .iter()
-                    .find(|i| i.value == val)
-                    .map(|i| i.label.clone())
-                    .unwrap_or_default()
-            }
-        }
-    };
-
-    // ── Select / deselect item ────────────────────────────────────────────────
-    let on_change_cb = on_change.clone();
-    let data_for_select = data.clone();
-    let select_item = move |item_value: String| {
+    // ── select_item ───────────────────────────────────────────────────────────
+    // Arc so the FnMut panel closure can clone it per item without moving it out.
+    let on_change_cb = Arc::new(on_change);
+    let select_item = Arc::new(move |item_value: String| {
         if disabled || read_only {
             return;
         }
@@ -263,7 +261,7 @@ pub fn RadzenDropDown(
                         v.push(item_value.clone());
                     }
                 });
-                if let Some(ref cb) = on_change_cb {
+                if let Some(ref cb) = *on_change_cb {
                     cb(value_multiple.unwrap().get().join(","));
                 }
             }
@@ -271,37 +269,35 @@ pub fn RadzenDropDown(
             if let Some(single_sig) = value {
                 single_sig.set(item_value.clone());
             }
-            if let Some(ref cb) = on_change_cb {
+            if let Some(ref cb) = *on_change_cb {
                 cb(item_value);
             }
-            // Close after single selection.
             open.set(false);
             filter_text.set(String::new());
         }
-        let _ = data_for_select.len(); // keep borrow alive
-    };
+    });
 
-    // ── Select All (multiple mode) ────────────────────────────────────────────
-    let data_for_all = data.clone();
-    let on_change_select_all = on_change.clone();
-    let select_all = move || {
+    // ── select_all ────────────────────────────────────────────────────────────
+    let on_change_cb2 = on_change_cb.clone();
+    let data_sv2 = StoredValue::new(data.clone());
+    let select_all = Arc::new(move || {
         if let Some(multi_sig) = value_multiple {
             let all_vals: Vec<String> =
-                data_for_all.iter().map(|i| i.value.clone()).collect();
+                data_sv2.get_value().iter().map(|i| i.value.clone()).collect();
             let currently_all = multi_sig.get().len() == all_vals.len();
             if currently_all {
                 multi_sig.set(vec![]);
-                if let Some(ref cb) = on_change_select_all {
+                if let Some(ref cb) = *on_change_cb2 {
                     cb(String::new());
                 }
             } else {
                 multi_sig.set(all_vals.clone());
-                if let Some(ref cb) = on_change_select_all {
+                if let Some(ref cb) = *on_change_cb2 {
                     cb(all_vals.join(","));
                 }
             }
         }
-    };
+    });
 
     // ── Toggle open ───────────────────────────────────────────────────────────
     let toggle = move |_ev: web_sys::MouseEvent| {
@@ -315,9 +311,8 @@ pub fn RadzenDropDown(
         }
     };
 
-    // Close on blur (after a short delay to allow item clicks to register).
+    // Close on blur (short delay so item clicks register first).
     let on_blur = move |_ev: web_sys::FocusEvent| {
-        // Use a microtask-style timeout so click events on items fire first.
         gloo_timers::callback::Timeout::new(150, move || {
             open.set(false);
             filter_text.set(String::new());
@@ -346,8 +341,14 @@ pub fn RadzenDropDown(
     let leave_cb = handle.on_mouse_leave.clone();
     let ctx_cb = handle.on_context_menu.clone();
 
-    // Stored data for rendering.
-    let data_for_render = StoredValue::new(data.clone());
+    // StoredValues for data used inside reactive closures.
+    let data_panel_sv = StoredValue::new(data);
+    let filter_placeholder_sv = StoredValue::new(filter_placeholder);
+    let select_all_text_sv = StoredValue::new(select_all_text);
+
+    // Clones of selected_label for each use site.
+    let sl_hidden = selected_label.clone();
+    let sl_label = selected_label.clone();
 
     Some(
         leptos::html::div()
@@ -359,29 +360,23 @@ pub fn RadzenDropDown(
                 if open.get() { "true" } else { "false" }
             })
             .attr("aria-disabled", if disabled { "true" } else { "false" })
-            // Root CSS class — reactive so open state is reflected.
+            // Root CSS class — reactive so open/empty state is reflected.
             .attr("class", move || {
                 let is_empty = if multiple {
-                    value_multiple
-                        .map(|s| s.get().is_empty())
-                        .unwrap_or(true)
+                    value_multiple.map(|s| s.get().is_empty()).unwrap_or(true)
                 } else {
                     value.map(|s| s.get().is_empty()).unwrap_or(true)
                 };
-                let mut cl = ClassList::create("rz-dropdown");
-                if open.get() {
-                    cl = cl.add_class("rz-state-focused");
-                }
-                cl = cl.add_disabled(disabled);
-                cl = cl.add("rz-state-empty", is_empty);
-                cl = cl.add_caller_class(
-                    if caller_class.is_empty() {
+                ClassList::create("rz-dropdown")
+                    .add_class(if open.get() { "rz-state-focused" } else { "" })
+                    .add_disabled(disabled)
+                    .add("rz-state-empty", is_empty)
+                    .add_caller_class(if caller_class.is_empty() {
                         None
                     } else {
                         Some(caller_class.as_str())
-                    },
-                );
-                cl.finish()
+                    })
+                    .finish()
             })
             .on(leptos::ev::click, toggle)
             .on(leptos::ev::blur, on_blur)
@@ -402,12 +397,13 @@ pub fn RadzenDropDown(
                             .attr("aria-expanded", move || {
                                 if open.get() { "true" } else { "false" }
                             })
-                            .prop("value", move || selected_label()),
+                            // Clone of Arc — does not move.
+                            .prop("value", move || sl_hidden()),
                     ),
             )
             // ── Selected-value label ──────────────────────────────────────────
             .child(move || {
-                let lbl = selected_label();
+                let lbl = sl_label();
                 let display_text = if lbl.is_empty() {
                     placeholder.clone().unwrap_or_default()
                 } else {
@@ -420,10 +416,7 @@ pub fn RadzenDropDown(
             // ── Trigger chevron ───────────────────────────────────────────────
             .child(
                 leptos::html::span()
-                    .attr(
-                        "class",
-                        "rz-dropdown-trigger rz-button rz-button-icon-only",
-                    )
+                    .attr("class", "rz-dropdown-trigger rz-button rz-button-icon-only")
                     .child(
                         leptos::html::span().attr(
                             "class",
@@ -432,12 +425,13 @@ pub fn RadzenDropDown(
                     ),
             )
             // ── Panel (shown when open) ───────────────────────────────────────
+            // FnMut: every capture is Copy, RwSignal (Copy), StoredValue, or Arc (cloned).
             .child(move || {
                 if !open.get() {
                     return None::<AnyView>.into_any();
                 }
 
-                let items = data_for_render.get_value();
+                let items = data_panel_sv.get_value();
                 let filter = filter_text.get();
                 let filter_lower = filter.to_lowercase();
 
@@ -447,24 +441,19 @@ pub fn RadzenDropDown(
                 } else {
                     items
                         .iter()
-                        .filter(|i| {
-                            i.label.to_lowercase().contains(&filter_lower)
-                        })
+                        .filter(|i| i.label.to_lowercase().contains(&filter_lower))
                         .cloned()
                         .collect()
                 };
 
-                // Select-all checkbox in multiple mode.
-                let select_all_row: Option<AnyView> = (multiple
-                    && allow_select_all
-                    && !allow_filtering)
-                    .then(|| {
+                // Select-all row (multiple mode only).
+                let select_all_row: Option<AnyView> =
+                    (multiple && allow_select_all && !allow_filtering).then(|| {
                         let sa = select_all.clone();
                         let is_all = value_multiple
                             .map(|s| {
                                 let sel = s.get();
-                                !sel.is_empty()
-                                    && sel.len() == items.len()
+                                !sel.is_empty() && sel.len() == items.len()
                             })
                             .unwrap_or(false);
                         leptos::html::div()
@@ -484,7 +473,7 @@ pub fn RadzenDropDown(
                             .child(
                                 leptos::html::label()
                                     .attr("class", "rz-chkbox-label")
-                                    .child(select_all_text.clone()),
+                                    .child(select_all_text_sv.get_value()),
                             )
                             .into_any()
                     });
@@ -492,7 +481,6 @@ pub fn RadzenDropDown(
                 Some(
                     leptos::html::div()
                         .attr("class", "rz-dropdown-panel rz-shadow-1")
-                        // Prevent the outer blur from firing when clicking inside the panel.
                         .on(leptos::ev::mousedown, move |ev: web_sys::MouseEvent| {
                             ev.prevent_default();
                         })
@@ -504,20 +492,19 @@ pub fn RadzenDropDown(
                                     leptos::html::input()
                                         .attr("type", "text")
                                         .attr("class", "rz-inputtext")
-                                        .attr("placeholder", filter_placeholder.clone())
+                                        .attr(
+                                            "placeholder",
+                                            filter_placeholder_sv.get_value(),
+                                        )
                                         .prop("value", move || filter_text.get())
                                         .on(leptos::ev::input, move |ev: web_sys::Event| {
                                             use web_sys::wasm_bindgen::JsCast;
-                                            if let Some(input) = ev
-                                                .target()
-                                                .and_then(|t| {
-                                                    t.dyn_into::<web_sys::HtmlInputElement>().ok()
-                                                })
-                                            {
+                                            if let Some(input) = ev.target().and_then(|t| {
+                                                t.dyn_into::<web_sys::HtmlInputElement>().ok()
+                                            }) {
                                                 filter_text.set(input.value());
                                             }
                                         })
-                                        // Stop outer click from closing.
                                         .on(leptos::ev::click, |ev: web_sys::MouseEvent| {
                                             ev.stop_propagation();
                                         }),
@@ -542,29 +529,26 @@ pub fn RadzenDropDown(
                                             filtered
                                                 .into_iter()
                                                 .map(|item| {
-                                                    let item_selected =
-                                                        is_selected(&item.value);
-                                                    let li_class = ClassList::create(
-                                                        "rz-dropdown-item",
-                                                    )
-                                                    .add(
-                                                        "rz-state-highlight",
-                                                        item_selected,
-                                                    )
-                                                    .add_disabled(item.disabled)
-                                                    .finish();
+                                                    let item_selected = is_selected(&item.value);
+                                                    let li_class =
+                                                        ClassList::create("rz-dropdown-item")
+                                                            .add("rz-state-highlight", item_selected)
+                                                            .add_disabled(item.disabled)
+                                                            .finish();
 
                                                     let iv = item.value.clone();
                                                     let item_disabled = item.disabled;
+                                                    // Clone Arc — keeps outer closure FnMut.
+                                                    let si = select_item.clone();
                                                     let on_item_click =
                                                         move |ev: web_sys::MouseEvent| {
                                                             ev.stop_propagation();
                                                             if !item_disabled {
-                                                                select_item(iv.clone());
+                                                                si(iv.clone());
                                                             }
                                                         };
 
-                                                    // Checkbox for multiple mode.
+                                                    // Checkbox tick for multiple mode.
                                                     let chk: Option<AnyView> =
                                                         multiple.then(|| {
                                                             leptos::html::div()
@@ -576,14 +560,16 @@ pub fn RadzenDropDown(
                                                                         "notranslate rz-chkbox-box"
                                                                     },
                                                                 )
-                                                                .child(leptos::html::span().attr(
-                                                                    "class",
-                                                                    if item_selected {
-                                                                        "notranslate rz-chkbox-icon rzi rzi-check"
-                                                                    } else {
-                                                                        "notranslate rz-chkbox-icon"
-                                                                    },
-                                                                ))
+                                                                .child(
+                                                                    leptos::html::span().attr(
+                                                                        "class",
+                                                                        if item_selected {
+                                                                            "notranslate rz-chkbox-icon rzi rzi-check"
+                                                                        } else {
+                                                                            "notranslate rz-chkbox-icon"
+                                                                        },
+                                                                    ),
+                                                                )
                                                                 .into_any()
                                                         });
 
@@ -592,11 +578,7 @@ pub fn RadzenDropDown(
                                                         .attr("role", "option")
                                                         .attr(
                                                             "aria-selected",
-                                                            if item_selected {
-                                                                "true"
-                                                            } else {
-                                                                "false"
-                                                            },
+                                                            if item_selected { "true" } else { "false" },
                                                         )
                                                         .on(leptos::ev::click, on_item_click)
                                                         .child(chk)

@@ -2,10 +2,10 @@ use leptos::prelude::*;
 use std::collections::HashMap;
 
 use crate::components::{
-    AlertSize, AlertStyle, RadzenLabel, AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps,
+    AlertSize, AlertStyle, AutoCompleteType, RadzenLabel, AlignItems, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps,
     FlexWrap, IconStyle, ImageClickFuture, ImageClickHandler, JustifyContent, NavLinkMatch,
     Orientation, RadzenAlert, RadzenBadge, RadzenButton, RadzenCard, RadzenIcon, RadzenImage,
-    RadzenLink, RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox, Shade, TagName, TextAlign, TextStyle, Variant,
+    RadzenLink, RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox, RadzenPassword, Shade, TagName, TextAlign, TextStyle, Variant,
 };
 
 /// Default Home Page
@@ -908,10 +908,11 @@ pub fn Home() -> impl IntoView {
                         component=Some("login_password".to_string())
                     />
 
-                    <RadzenTextBox
-                        name=Some("login_password".to_string())
-                        placeholder=Some("Password".to_string())
-                    />
+                <RadzenPassword
+                    name=Some("login_password".to_string())
+                    placeholder=Some("Password".to_string())
+                    auto_complete=AutoCompleteType::CurrentPassword
+                />
                 </div>
             </RadzenCard>
             // ── TextArea examples ───────────────────────────────────────────────
@@ -947,6 +948,9 @@ pub fn Home() -> impl IntoView {
                     rows=5
                     immediate=true
                     placeholder=Some("Type here...".to_string())
+                />
+                <RadzenText
+                    text=Some(format!("Length: {}", description.get().len()))
                 />
             </div>
 

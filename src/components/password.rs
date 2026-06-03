@@ -1,26 +1,42 @@
-//! RadzenTextBox component — mirrors C# Radzen.Blazor.RadzenTextBox.
+//! RadzenPassword component — mirrors C# Radzen.Blazor.RadzenPassword.
 //!
 //! # CSS class order (mirrors Blazor exactly)
 //! `rz-textbox [rz-state-disabled] [rz-state-empty] [caller-class]`
 //!
 //! Blazor `GetComponentCssClass()`:
 //! ```csharp
-//! return GetClassList("rz-textbox").ToString();
+//! protected override string GetComponentCssClass()
+//! {
+//!     return GetClassList("rz-textbox").ToString();
+//! }
 //! ```
+//! `RadzenPassword` reuses the same CSS class as `RadzenTextBox` — the only
+//! visual difference is the HTML `type="password"` attribute, which the browser
+//! uses to mask the input as dots.
+//!
+//! # HTML `type="password"`
+//! The single key difference from `RadzenTextBox`: the `<input>` is rendered
+//! with `type="password"` instead of `type="text"`. The browser handles all
+//! masking automatically.
+//!
+//! # Autocomplete
+//! Default is `AutoCompleteType::NewPassword` — mirrors Blazor's
+//! `DefaultAutoCompleteAttribute = "new-password"` which helps password managers
+//! recognise this as a new-password field (e.g. on registration forms).
+//! Use `AutoCompleteType::CurrentPassword` for login forms.
 //!
 //! # Two render modes — mirrors `Immediate` prop
+//! Same as `RadzenTextBox`:
 //! ```
-//! Immediate = true  → oninput AND onchange (Blazor: @bind:event="oninput" + @onchange)
-//! Immediate = false → onchange only
+//! Immediate = true  → listens on both `oninput` AND `onchange`
+//! Immediate = false → listens on `onchange` only
 //! ```
 //!
-//! # `@attributes` spread — mirrors Blazor's `@attributes="Attributes"`
-//! Non-`"class"` entries in `base.attrs` are applied imperatively after mount
-//! via `NodeRef` + `Effect`, avoiding compile-time type-parameter explosion
-//! from folding `.attr()` calls.
+//! # `@attributes` spread
+//! All non-`"class"` entries in `base.attrs` are forwarded to the `<input>`.
 //!
 //! # `id` resolution
-//! `name` wins over auto-generated id — mirrors Blazor's `GetId()` override.
+//! `name` wins over the auto-generated id — mirrors Blazor's `GetId()` override.
 //!
 //! # Visibility
 //! Mirrors `@if (Visible)` — element fully omitted, not `display:none`.
@@ -39,9 +55,33 @@ fn aria_autocomplete_value(ac: &AutoCompleteType) -> &'static str {
     }
 }
 
-/// RadzenTextBox component.
+/// RadzenPassword component.
+///
+/// A styled `<input type="password">` that masks characters as dots.
+/// Shares the same CSS class (`rz-textbox`) and all behaviour with
+/// [`RadzenTextBox`], differing only in the `type` attribute.
+///
+/// # Autocomplete
+/// Defaults to `AutoCompleteType::NewPassword` (`autocomplete="new-password"`),
+/// which is correct for registration / change-password forms and helps password
+/// managers identify the field. For login forms, pass
+/// `auto_complete=AutoCompleteType::CurrentPassword`.
+///
+/// # Example
+/// ```rust,ignore
+/// let password = RwSignal::new(String::new());
+///
+/// view! {
+///     <RadzenLabel text=Some("Password".to_string()) component=Some("pwd".to_string()) />
+///     <RadzenPassword
+///         name=Some("pwd".to_string())
+///         value=password
+///         placeholder=Some("Enter password".to_string())
+///     />
+/// }
+/// ```
 #[component]
-pub fn RadzenTextBox(
+pub fn RadzenPassword(
     /// Base component properties (id, style, visible, attrs, locale, mouse events).
     /// Non-`"class"` entries in `attrs` are spread onto the `<input>` element.
     #[prop(default = Default::default())]
@@ -76,18 +116,16 @@ pub fn RadzenTextBox(
     max_length: Option<u64>,
 
     /// Whether to update on every keystroke (`oninput`) in addition to `onchange`.
-    /// - `true`  → Blazor Immediate: `@bind:event="oninput"` + `@onchange`
-    /// - `false` → Blazor default: `@onchange` only
-    /// Default: `false`.
+    /// Mirrors Blazor's `Immediate` parameter. Default: `false`.
     #[prop(default = false)]
     immediate: bool,
 
-    /// Whether to trim leading/trailing whitespace on change. Default: `false`.
-    #[prop(default = false)]
-    trim: bool,
-
-    /// Browser autocomplete behaviour. Default: [`AutoCompleteType::On`].
-    #[prop(default = AutoCompleteType::On)]
+    /// Browser autocomplete behaviour.
+    ///
+    /// Default: [`AutoCompleteType::NewPassword`] — mirrors Blazor's
+    /// `DefaultAutoCompleteAttribute = "new-password"`.
+    /// Use [`AutoCompleteType::CurrentPassword`] for login forms.
+    #[prop(default = AutoCompleteType::NewPassword)]
     auto_complete: AutoCompleteType,
 
     /// Called after the value has been committed.
@@ -112,6 +150,10 @@ pub fn RadzenTextBox(
     let effective_tab_index = if disabled { -1 } else { tab_index };
 
     // ── CSS class — reactive via Memo ─────────────────────────────────────────
+    // Mirrors GetClassList("rz-textbox"):
+    //   .AddDisabled(Disabled)
+    //   .Add("rz-state-empty", !HasValue)
+    // then caller class appended last.
     let static_class_prefix = ClassList::create("rz-textbox")
         .add_disabled(disabled)
         .finish();
@@ -134,9 +176,7 @@ pub fn RadzenTextBox(
         format!("{}{}{}", static_class_prefix, empty_class, caller)
     });
 
-    // ── @attributes spread via NodeRef ────────────────────────────────────────
-    // Folding .attr() at compile time produces a unique HtmlElement type per
-    // combination. We apply extra attrs imperatively after mount instead.
+    // ── @attributes spread ────────────────────────────────────────────────────
     let extra_attrs: Vec<(String, String)> = base
         .attrs
         .as_ref()
@@ -148,22 +188,6 @@ pub fn RadzenTextBox(
         })
         .unwrap_or_default();
 
-    let node_ref = NodeRef::<leptos::html::Input>::new();
-
-    if !extra_attrs.is_empty() {
-        let attrs_clone = extra_attrs.clone();
-        Effect::new(move |_| {
-            if let Some(el) = node_ref.get() {
-                use web_sys::wasm_bindgen::JsCast;
-                if let Some(el) = el.dyn_ref::<web_sys::HtmlElement>() {
-                    for (k, v) in &attrs_clone {
-                        el.set_attribute(k, v).ok();
-                    }
-                }
-            }
-        });
-    }
-
     // ── Event handlers ────────────────────────────────────────────────────────
     let enter_cb = handle.on_mouse_enter;
     let leave_cb = handle.on_mouse_leave;
@@ -171,17 +195,13 @@ pub fn RadzenTextBox(
 
     let on_change_cb = on_change;
     let commit = Arc::new(move |raw: String| {
-        let mut v = raw;
-        if trim {
-            v = v.trim().to_string();
-        }
-        value_signal.set(v.clone());
+        value_signal.set(raw.clone());
         if let Some(ref cb) = on_change_cb {
-            cb(v);
+            cb(raw);
         }
     });
 
-    // oninput — Immediate mode only (Blazor: @bind:event="oninput")
+    // oninput — Immediate mode only.
     let commit_input = commit.clone();
     let on_input = move |ev: web_sys::Event| {
         use web_sys::wasm_bindgen::JsCast;
@@ -193,7 +213,7 @@ pub fn RadzenTextBox(
         }
     };
 
-    // onchange — both modes (Blazor: @onchange present in both branches)
+    // onchange — both modes (same as RadzenTextBox).
     let commit_change = commit.clone();
     let on_change_ev = move |ev: web_sys::Event| {
         use web_sys::wasm_bindgen::JsCast;
@@ -206,33 +226,37 @@ pub fn RadzenTextBox(
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
-    Some(
-        leptos::html::input()
-            .node_ref(node_ref)
-            .attr("id", input_id)
-            .attr("type", "text")
-            .attr("name", name)
-            .attr("class", move || css_class.get())
-            .attr("style", style)
-            .attr("placeholder", placeholder)
-            .attr("disabled", disabled)
-            .attr("readonly", read_only)
-            .attr("tabindex", effective_tab_index.to_string())
-            .attr("maxlength", max_length.map(|n| n.to_string()))
-            .attr("autocomplete", autocomplete_str)
-            .attr("aria-autocomplete", aria_autocomplete_str)
-            .prop("value", move || value_signal.get())
-            .on(leptos::ev::input, move |ev| {
-                if immediate {
-                    on_input(ev.into());
-                }
-            })
-            .on(leptos::ev::change, move |ev| {
-                on_change_ev(ev.into());
-            })
-            .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
-            .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
-            .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev)),
-    )
-    .into_any()
+    // The only difference from RadzenTextBox: `type="password"` instead of
+    // `type="text"`. The browser handles masking automatically.
+    let el = leptos::html::input()
+        .attr("id", input_id)
+        .attr("type", "password")
+        .attr("name", name)
+        .attr("class", move || css_class.get())
+        .attr("style", style)
+        .attr("placeholder", placeholder)
+        .attr("disabled", disabled)
+        .attr("readonly", read_only)
+        .attr("tabindex", effective_tab_index.to_string())
+        .attr("maxlength", max_length.map(|n| n.to_string()))
+        .attr("autocomplete", autocomplete_str)
+        .attr("aria-autocomplete", aria_autocomplete_str)
+        .prop("value", move || value_signal.get())
+        .on(leptos::ev::input, move |ev| {
+            if immediate {
+                on_input(ev.into());
+            }
+        })
+        .on(leptos::ev::change, move |ev| {
+            on_change_ev(ev.into());
+        })
+        .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
+        .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
+        .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev));
+
+    let el = extra_attrs
+        .into_iter()
+        .fold(el, |el, (k, v)| el.attr(k, v));
+
+    Some(el).into_any()
 }

@@ -1,53 +1,40 @@
 //! RadzenDatePicker component — mirrors C# Radzen.Blazor.RadzenDatePicker<TValue>.
 //!
-//! # CSS class order (mirrors Blazor exactly)
+//! # CSS class (mirrors Blazor exactly)
 //! Root `<div>`: `rz-datepicker [rz-datepicker-inline] [rz-state-disabled] [caller-class]`
-//! Trigger button: `rz-datepicker-trigger rz-button rz-button-icon-only [rz-state-disabled]`
-//! Panel: `rz-datepicker-panel rz-shadow-1`
-//! Calendar view: `rz-calendar-view`
-//! Day cells: `rz-state-default [rz-state-active] [rz-calendar-other-month] [rz-state-disabled]`
+//!
+//! Input: `rz-inputtext [rz-input-trigger] [rz-readonly]`
+//!   - `rz-input-trigger` when `!ShowButton` (input itself opens popup)
+//!   - `rz-readonly` when `ReadOnly`
+//!
+//! Trigger button:
+//!   `rz-datepicker-trigger [rz-datepicker-field-button] rz-button rz-button-icon-only [rz-state-disabled] {ButtonClass}`
+//!   - `rz-datepicker-field-button` only when `ShowInput` is true (mirrors Blazor exactly)
+//!
+//! Trigger icon span: `notranslate rzi rzi-calendar`
+//!   - SCSS: `.rzi-calendar:before { content: 'calendar_today'; }` — Material Symbols glyph
+//!
+//! Popup container: `rz-datepicker-popup-container` (popup) | `rz-datepicker-inline-container` (inline)
+//!   - Positioned absolutely via `position: absolute; z-index: var(--rz-popup-z-index)`
+//!   - The Blazor <Popup> component handles this; we replicate with inline style
+//!
+//! Calendar: `rz-calendar`
+//! Calendar header: `rz-calendar-header`
+//! Prev button: `rz-button rz-button-md rz-variant-text rz-button-icon-only rz-secondary rz-shade-default rz-calendar-prev`
+//! Next button: `rz-button rz-button-md rz-variant-text rz-button-icon-only rz-secondary rz-shade-default rz-calendar-next`
+//! Prev icon: `notranslate rzi rz-calendar-prev-icon` (SCSS pseudo-element for chevron-left)
+//! Next icon: `notranslate rzi rz-calendar-next-icon` (SCSS pseudo-element for chevron-right)
+//! Title: `rz-calendar-title`
+//! Table wrapper: `rz-calendar-view-container` (tabindex for keyboard nav)
+//! Table: `rz-calendar-view rz-calendar-month-view`
+//! Other-month td: `rz-datepicker-other-month`
+//! Day span: `rz-state-default [rz-state-active] [rz-datepicker-today] [rz-state-disabled]`
 //!
 //! Blazor `GetComponentCssClass()`:
 //! ```csharp
 //! GetClassList("rz-datepicker")
 //!     .Add("rz-datepicker-inline", Inline)
 //!     .ToString()
-//! ```
-//!
-//! # Simplified scope
-//! The full Blazor DatePicker supports Date, DateTime, Time, DateTimeOffset, and
-//! range/multiple-date modes. For our grid use-case (date column filtering) we focus on:
-//! - Date-only selection (year/month/day navigation)
-//! - Optional text input (`show_input=true`)
-//! - Optional inline mode (no trigger button — panel always visible)
-//! - `Option<chrono::NaiveDate>` as the value type (nullable date)
-//!
-//! # HTML structure
-//! ```html
-//! <div class="rz-datepicker …" id="…" style="…">
-//!   <!-- Text input (when show_input=true) -->
-//!   <input class="rz-inputtext" type="text" value="…" readonly? … />
-//!   <!-- Trigger button (when not inline) -->
-//!   <button class="rz-datepicker-trigger rz-button rz-button-icon-only …" tabindex="-1">
-//!     <span class="notranslate rzi rzi-calendar"></span>
-//!   </button>
-//!   <!-- Panel (shown when open, or always when inline) -->
-//!   <div class="rz-datepicker-panel rz-shadow-1">
-//!     <div class="rz-datepicker-calendar">
-//!       <!-- Header row: prev / month-year / next -->
-//!       <div class="rz-datepicker-header">
-//!         <button class="rz-datepicker-prev …"><span class="rzi rzi-chevron-left"></span></button>
-//!         <span class="rz-datepicker-title">…Month Year…</span>
-//!         <button class="rz-datepicker-next …"><span class="rzi rzi-chevron-right"></span></button>
-//!       </div>
-//!       <!-- Calendar table -->
-//!       <table class="rz-calendar-view">
-//!         <thead> … day-name headers … </thead>
-//!         <tbody> … day cells … </tbody>
-//!       </table>
-//!     </div>
-//!   </div>
-//! </div>
 //! ```
 //!
 //! # Visibility
@@ -65,44 +52,42 @@ use std::sync::Arc;
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Returns the first day of the given month.
-fn first_day_of_month(year: i32, month: u32) -> NaiveDate {
-    NaiveDate::from_ymd_opt(year, month, 1).expect("valid date")
-}
-
-/// Returns the last day of the given month.
 fn last_day_of_month(year: i32, month: u32) -> NaiveDate {
-    // Move to next month's day 1, then subtract 1 day.
-    let (next_year, next_month) = if month == 12 {
-        (year + 1, 1)
-    } else {
-        (year, month + 1)
-    };
-    NaiveDate::from_ymd_opt(next_year, next_month, 1).expect("valid date") - Duration::days(1)
+    let (ny, nm) = if month == 12 { (year + 1, 1) } else { (year, month + 1) };
+    NaiveDate::from_ymd_opt(ny, nm, 1).expect("valid date") - Duration::days(1)
 }
 
-/// Format a date as `"Month YYYY"` e.g. `"January 2025"`.
-fn format_month_year(year: i32, month: u32) -> String {
-    let month_name = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ][(month - 1) as usize];
-    format!("{} {}", month_name, year)
+fn month_name(month: u32) -> &'static str {
+    ["January","February","March","April","May","June",
+     "July","August","September","October","November","December"]
+        [(month - 1) as usize]
 }
 
-/// Format a `NaiveDate` as `"YYYY-MM-DD"`.
 fn format_date(date: NaiveDate) -> String {
     format!("{}-{:02}-{:02}", date.year(), date.month(), date.day())
+}
+
+/// Build a flat 42-cell grid (6 rows × 7 cols, Sun–Sat) for the given month.
+/// Cells before/after the current month are filled from adjacent months.
+/// Mirrors Blazor's `StartDate` + `dayNumber` loop over 42 iterations.
+fn build_calendar_weeks(year: i32, month: u32) -> Vec<Vec<NaiveDate>> {
+    let first = NaiveDate::from_ymd_opt(year, month, 1).expect("valid date");
+    let start_offset = {
+        use chrono::Weekday;
+        match first.weekday() {
+            Weekday::Sun => 0i64,
+            Weekday::Mon => 1,
+            Weekday::Tue => 2,
+            Weekday::Wed => 3,
+            Weekday::Thu => 4,
+            Weekday::Fri => 5,
+            Weekday::Sat => 6,
+        }
+    };
+    let grid_start = first - Duration::days(start_offset);
+    (0..6)
+        .map(|row| (0..7).map(|col| grid_start + Duration::days(row * 7 + col)).collect())
+        .collect()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -113,17 +98,6 @@ fn format_date(date: NaiveDate) -> String {
 ///
 /// A calendar-based date picker with optional text input and inline mode.
 /// The value is `Option<NaiveDate>` — `None` represents an empty/cleared date.
-///
-/// # Popup mode (default)
-/// ```rust,ignore
-/// let date = RwSignal::new(None::<NaiveDate>);
-/// <RadzenDatePicker value=date placeholder=Some("Pick a date") />
-/// ```
-///
-/// # Inline mode (calendar always visible, no trigger button)
-/// ```rust,ignore
-/// <RadzenDatePicker value=date inline=true />
-/// ```
 #[component]
 pub fn RadzenDatePicker(
     /// Base component properties (id, style, visible, attrs, locale, mouse events).
@@ -134,15 +108,19 @@ pub fn RadzenDatePicker(
     #[prop(optional)]
     value: Option<RwSignal<Option<NaiveDate>>>,
 
-    /// Placeholder text for the text input (when `show_input=true`).
+    /// Placeholder text for the text input.
     #[prop(default = None, into)]
     placeholder: Option<String>,
 
-    /// Whether to show a text input next to the trigger button. Default: `true`.
+    /// Whether to show the text input field. Default: `true`. Mirrors Blazor `ShowInput`.
     #[prop(default = true)]
     show_input: bool,
 
-    /// Whether the calendar is always visible (no trigger button). Default: `false`.
+    /// Whether to show the calendar trigger button. Default: `true`. Mirrors Blazor `ShowButton`.
+    #[prop(default = true)]
+    show_button: bool,
+
+    /// Whether the calendar is always visible (inline). Default: `false`.
     #[prop(default = false)]
     inline: bool,
 
@@ -154,7 +132,7 @@ pub fn RadzenDatePicker(
     #[prop(default = false)]
     read_only: bool,
 
-    /// `name` attribute for the hidden input.
+    /// `name` attribute for the input.
     #[prop(default = None, into)]
     name: Option<String>,
 
@@ -162,15 +140,15 @@ pub fn RadzenDatePicker(
     #[prop(default = 0)]
     tab_index: i32,
 
-    /// Minimum selectable date (inclusive). `None` = no minimum.
+    /// Minimum selectable date (inclusive).
     #[prop(default = None)]
     min: Option<NaiveDate>,
 
-    /// Maximum selectable date (inclusive). `None` = no maximum.
+    /// Maximum selectable date (inclusive).
     #[prop(default = None)]
     max: Option<NaiveDate>,
 
-    /// Whether to allow clearing the date by clicking the selected day again. Default: `true`.
+    /// Whether clicking a selected day again clears it. Default: `true`.
     #[prop(default = true)]
     allow_clear: bool,
 
@@ -180,7 +158,6 @@ pub fn RadzenDatePicker(
 ) -> impl IntoView {
     let handle = use_radzen_base(&base, "");
 
-    // Visibility.
     if !handle.visible.get_untracked() {
         return None::<AnyView>.into_any();
     }
@@ -188,308 +165,301 @@ pub fn RadzenDatePicker(
     let value_signal = value.unwrap_or_else(|| RwSignal::new(None));
     let effective_tab = if disabled { -1 } else { tab_index };
 
-    // ── View state: which year/month the calendar is showing ──────────────────
+    // ── View state ────────────────────────────────────────────────────────────
     let today = chrono::Local::now().naive_local().date();
     let initial = value_signal.get_untracked().unwrap_or(today);
-    let view_year = RwSignal::new(initial.year());
+    let view_year  = RwSignal::new(initial.year());
     let view_month = RwSignal::new(initial.month());
 
-    // ── Open state (ignored when inline=true) ─────────────────────────────────
+    // ── Open state ────────────────────────────────────────────────────────────
+    // Always open when inline; otherwise toggled by the button.
     let open = RwSignal::new(inline);
 
-    // ── CSS ───────────────────────────────────────────────────────────────────
-    let caller_class = base
-        .attrs
-        .as_ref()
-        .and_then(|a| a.get("class"))
-        .cloned()
-        .unwrap_or_default();
-
+    // ── Root CSS ──────────────────────────────────────────────────────────────
+    let caller_class = base.attrs.as_ref()
+        .and_then(|a| a.get("class")).cloned().unwrap_or_default();
     let root_class = ClassList::create("rz-datepicker")
         .add("rz-datepicker-inline", inline)
         .add_disabled(disabled)
-        .add_caller_class(if caller_class.is_empty() {
-            None
-        } else {
-            Some(caller_class.as_str())
-        })
+        .add_caller_class(if caller_class.is_empty() { None } else { Some(caller_class.as_str()) })
         .finish();
 
-    let style = base.style.clone().unwrap_or_default();
+    // ── Input CSS ─────────────────────────────────────────────────────────────
+    // Mirrors Blazor: `rz-inputtext @InputClass @(ReadOnly ? "rz-readonly" : "") @(!ShowButton ? "rz-input-trigger" : "")`
+    let input_class = format!(
+        "rz-inputtext{}{}",
+        if !show_button { " rz-input-trigger" } else { "" },
+        if read_only   { " rz-readonly"       } else { "" },
+    );
+
+    // ── Trigger button CSS ────────────────────────────────────────────────────
+    // Mirrors Blazor exactly:
+    // `rz-datepicker-trigger{(ShowInput ? " rz-datepicker-field-button" : "")} rz-button rz-button-icon-only{(Disabled ? " rz-state-disabled" : "")} {ButtonClass}`
+    // NOTE: `rz-datepicker-field-button` only when ShowInput=true, NOT `ShowInput || !ShowButton`.
+    let button_class = format!(
+        "rz-datepicker-trigger{} rz-button rz-button-icon-only{}",
+        if show_input { " rz-datepicker-field-button" } else { "" },
+        if disabled   { " rz-state-disabled"          } else { "" },
+    );
+
+    let style    = base.style.clone().unwrap_or_default();
     let handle_id = handle.id.clone();
 
-    // ── Commit a date selection ───────────────────────────────────────────────
+    // ── Commit ────────────────────────────────────────────────────────────────
     let on_change_cb = on_change.clone();
     let commit = Arc::new(move |new_date: Option<NaiveDate>| {
         value_signal.set(new_date);
-        if let Some(ref cb) = on_change_cb {
-            cb(new_date);
-        }
-        if !inline {
-            open.set(false);
-        }
+        if let Some(ref cb) = on_change_cb { cb(new_date); }
+        if !inline { open.set(false); }
     });
 
-    // ── Toggle open ───────────────────────────────────────────────────────────
-    let commit_close = commit.clone();
+    // ── Toggle ────────────────────────────────────────────────────────────────
+    // Mirrors Blazor `OnToggle` — called on `@onmousedown` of the trigger button.
     let toggle_open = move |_ev: web_sys::MouseEvent| {
-        if disabled || read_only {
-            return;
+        if disabled || read_only || inline { return; }
+        let is_open = open.get_untracked();
+        if !is_open {
+            // Sync view to selected value (or today) when opening.
+            let d = value_signal.get_untracked().unwrap_or(today);
+            view_year.set(d.year());
+            view_month.set(d.month());
         }
-        if !inline {
-            let is_open = open.get_untracked();
-            if !is_open {
-                // Sync view to selected or today.
-                let d = value_signal.get_untracked().unwrap_or(today);
-                view_year.set(d.year());
-                view_month.set(d.month());
-            }
-            open.set(!is_open);
-        }
-        let _ = commit_close.clone(); // keep borrow
+        open.set(!is_open);
     };
 
-    // Close on blur.
+    // Close on blur — short delay so day clicks register first.
     let on_blur = move |_ev: web_sys::FocusEvent| {
         if !inline {
-            gloo_timers::callback::Timeout::new(150, move || {
-                open.set(false);
-            })
-            .forget();
+            gloo_timers::callback::Timeout::new(150, move || { open.set(false); }).forget();
         }
     };
 
-    // ── Navigation ────────────────────────────────────────────────────────────
-    let prev_month = move |_ev: web_sys::MouseEvent| {
+    // ── Month navigation ──────────────────────────────────────────────────────
+    let prev_month = move |_: web_sys::MouseEvent| {
         let (y, m) = (view_year.get_untracked(), view_month.get_untracked());
-        if m == 1 {
-            view_year.set(y - 1);
-            view_month.set(12);
-        } else {
-            view_month.set(m - 1);
-        }
+        if m == 1 { view_year.set(y - 1); view_month.set(12); }
+        else       { view_month.set(m - 1); }
     };
-
-    let next_month = move |_ev: web_sys::MouseEvent| {
+    let next_month = move |_: web_sys::MouseEvent| {
         let (y, m) = (view_year.get_untracked(), view_month.get_untracked());
-        if m == 12 {
-            view_year.set(y + 1);
-            view_month.set(1);
-        } else {
-            view_month.set(m + 1);
-        }
+        if m == 12 { view_year.set(y + 1); view_month.set(1); }
+        else        { view_month.set(m + 1); }
     };
 
     // Base events.
     let enter_cb = handle.on_mouse_enter.clone();
     let leave_cb = handle.on_mouse_leave.clone();
-    let ctx_cb = handle.on_context_menu.clone();
+    let ctx_cb   = handle.on_context_menu.clone();
 
-    // Day names (Sun–Sat to match Blazor default locale).
+    // Abbreviated day names, Sun–Sat (Blazor default locale).
     let day_names = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-    Some(
-        leptos::html::div()
-            .attr("id", handle_id)
-            .attr("class", root_class)
-            .attr("style", style)
-            .on(leptos::ev::blur, on_blur)
-            .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
-            .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
-            .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev))
-            // ── Text input ────────────────────────────────────────────────────
-            .child(show_input.then(|| {
-                leptos::html::input()
-                    .attr("type", "text")
-                    .attr("name", name.clone())
-                    .attr("class", "rz-inputtext rz-datepicker-input")
-                    .attr("placeholder", placeholder.clone().unwrap_or_default())
-                    .attr("readonly", true) // value controlled by calendar only
-                    .attr("disabled", disabled)
-                    .attr("tabindex", effective_tab.to_string())
-                    .prop("value", move || {
-                        value_signal
-                            .get()
-                            .map(format_date)
-                            .unwrap_or_default()
-                    })
-            }))
-            // ── Trigger button (non-inline) ───────────────────────────────────
-            .child((!inline).then(|| {
-                leptos::html::button()
-                    .attr(
-                        "class",
-                        format!(
-                            "rz-datepicker-trigger rz-button rz-button-icon-only{}",
-                            if disabled { " rz-state-disabled" } else { "" }
-                        ),
-                    )
-                    .attr("type", "button")
-                    .attr("tabindex", "-1")
-                    .attr("disabled", disabled)
-                    .on(leptos::ev::click, toggle_open)
-                    .child(
-                        leptos::html::span()
-                            .attr("class", "notranslate rzi rzi-calendar"),
-                    )
-            }))
-            // ── Calendar panel ────────────────────────────────────────────────
-            .child(move || {
+    view! {
+        <div
+            id=handle_id
+            class=root_class
+            style=style
+            tabindex=effective_tab.to_string()
+            on:blur=on_blur
+            on:mouseenter=move |ev| enter_cb(ev)
+            on:mouseleave=move |ev| leave_cb(ev)
+            on:contextmenu=move |ev| ctx_cb(ev)
+        >
+            // ── Input + trigger button ────────────────────────────────────────
+            // Mirrors Blazor: @if (!Inline) { … input … button … }
+            // When inline=true NEITHER the input NOR the button are rendered —
+            // the calendar is the entire component (rz-datepicker-inline-container).
+            {(!inline).then(|| view! {
+                // Input — mirrors: @if (ShowInput || !ShowButton) { <input … /> }
+                // When ShowButton=false the input has `rz-input-trigger` class and
+                // its `onmousedown` opens the popup (Blazor wires this via JS interop).
+                {(show_input || !show_button).then(|| view! {
+                    <input
+                        type="text"
+                        name=name.clone()
+                        id=name.clone()
+                        class=input_class
+                        autocomplete="off"
+                        placeholder=placeholder.unwrap_or_default()
+                        disabled=disabled
+                        readonly=true
+                        tabindex=if disabled { "-1".to_string() } else { effective_tab.to_string() }
+                        prop:value=move || value_signal.get().map(format_date).unwrap_or_default()
+                        on:mousedown=if !show_button { Some(toggle_open) } else { None }
+                    />
+                })}
+
+                // Trigger button — mirrors: @if (ShowButton) { <button @onmousedown=@OnToggle …> }
+                // Positioned absolutely over the input's right edge by SCSS.
+                // Uses `onmousedown` (fires before `blur`) to open/close the popup.
+                // Icon span class: `notranslate rzi rzi-calendar`
+                //   SCSS: `.rzi-calendar:before { content: 'calendar_today'; }` — Material Symbols.
+                {show_button.then(|| view! {
+                    <button
+                        type="button"
+                        class=button_class
+                        tabindex="-1"
+                        disabled=disabled
+                        aria-haspopup="dialog"
+                        aria-expanded=move || if open.get() { "true" } else { "false" }
+                        on:mousedown=toggle_open
+                    >
+                        <span class="notranslate rzi rzi-calendar"></span>
+                        <span class="rz-button-text"></span>
+                    </button>
+                })}
+            })}
+
+            // ── Popup / inline calendar ───────────────────────────────────────
+            // Mirrors Blazor's <Popup> component.
+            // - `rz-datepicker-popup-container` in popup mode (position:absolute overlay).
+            // - `rz-datepicker-inline-container` in inline mode.
+            // - z-index ensures the popup renders above other content.
+            // - `onmousedown:prevent_default` prevents the blur event from firing
+            //   before a day click can register (same as Blazor's mousedown handling).
+            {move || {
                 if !open.get() {
                     return None::<AnyView>.into_any();
                 }
 
-                let year = view_year.get();
-                let month = view_month.get();
-                let first = first_day_of_month(year, month);
-                let last = last_day_of_month(year, month);
+                let year     = view_year.get();
+                let month    = view_month.get();
                 let selected = value_signal.get();
+                let weeks    = build_calendar_weeks(year, month);
+                let commit_c = commit.clone();
 
-                // Number of leading blank cells (0=Sunday index of first day).
-                // chrono: Monday=0..Sunday=6. We want Sunday=0.
-                let start_weekday = {
-                    use chrono::Weekday;
-                    match first.weekday() {
-                        Weekday::Sun => 0,
-                        Weekday::Mon => 1,
-                        Weekday::Tue => 2,
-                        Weekday::Wed => 3,
-                        Weekday::Thu => 4,
-                        Weekday::Fri => 5,
-                        Weekday::Sat => 6,
-                    }
+                let container_class = if inline {
+                    "rz-datepicker-inline-container"
+                } else {
+                    "rz-datepicker-popup-container"
                 };
 
-                // Build weeks as Vec<Vec<Option<NaiveDate>>>.
-                let total_days = last.day() as usize;
-                let total_cells = start_weekday + total_days;
-                let num_rows = (total_cells + 6) / 7;
-                let mut weeks: Vec<Vec<Option<NaiveDate>>> =
-                    vec![vec![None; 7]; num_rows];
-                for day in 1..=total_days {
-                    let cell_index = start_weekday + day - 1;
-                    let row = cell_index / 7;
-                    let col = cell_index % 7;
-                    weeks[row][col] = NaiveDate::from_ymd_opt(year, month, day as u32);
-                }
+                // The Blazor <Popup> component renders with position:absolute and a
+                // high z-index. We replicate that here since we don't have the JS popup.
+                let popup_style = if inline {
+                    String::new()
+                } else {
+                    "position:absolute;z-index:var(--rz-popup-z-index,1000);left:0;top:100%;min-width:100%".to_string()
+                };
 
-                let commit_day = commit.clone();
+                // ── Header day-name cells ─────────────────────────────────────
+                let header_cells: Vec<AnyView> = day_names.iter().map(|&n| view! {
+                    <th scope="col"><span>{n}</span></th>
+                }.into_any()).collect();
 
-                Some(
-                    leptos::html::div()
-                        .attr("class", "rz-datepicker-panel rz-shadow-1")
-                        .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
-                            ev.prevent_default(); // prevent blur
-                        })
-                        .child(
-                            leptos::html::div()
-                                .attr("class", "rz-datepicker-calendar")
-                                // ── Header ────────────────────────────────────
-                                .child(
-                                    leptos::html::div()
-                                        .attr("class", "rz-datepicker-header")
-                                        .child(
-                                            leptos::html::button()
-                                                .attr("type", "button")
-                                                .attr("class", "rz-datepicker-prev rz-button rz-button-icon-only")
-                                                .on(leptos::ev::click, prev_month)
-                                                .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-left")),
-                                        )
-                                        .child(
-                                            leptos::html::span()
-                                                .attr("class", "rz-datepicker-title")
-                                                .child(format_month_year(year, month)),
-                                        )
-                                        .child(
-                                            leptos::html::button()
-                                                .attr("type", "button")
-                                                .attr("class", "rz-datepicker-next rz-button rz-button-icon-only")
-                                                .on(leptos::ev::click, next_month)
-                                                .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-right")),
-                                        ),
-                                )
-                                // ── Calendar table ─────────────────────────────
-                                .child(
-                                    leptos::html::table()
-                                        .attr("class", "rz-calendar-view")
-                                        // Day-name header.
-                                        .child(
-                                            leptos::html::thead().child(
-                                                leptos::html::tr().child(
-                                                    day_names
-                                                        .iter()
-                                                        .map(|n| {
-                                                            leptos::html::th()
-                                                                .attr("scope", "col")
-                                                                .child(*n)
-                                                                .into_any()
-                                                        })
-                                                        .collect_view(),
-                                                ),
-                                            ),
-                                        )
-                                        // Day rows.
-                                        .child(
-                                            leptos::html::tbody().child(
-                                                weeks
-                                                    .into_iter()
-                                                    .map(|week| {
-                                                        let commit_row = commit_day.clone();
-                                                        leptos::html::tr().child(
-                                                            week.into_iter()
-                                                                .map(move |day_opt| {
-                                                                    let commit_cell = commit_row.clone();
-                                                                    match day_opt {
-                                                                        None => leptos::html::td()
-                                                                            .attr("class", "rz-calendar-other-month")
-                                                                            .into_any(),
-                                                                        Some(day) => {
-                                                                            let is_selected = selected.map_or(false, |s| s == day);
-                                                                            let is_today = day == today;
-                                                                            let below_min = min.map_or(false, |mn| day < mn);
-                                                                            let above_max = max.map_or(false, |mx| day > mx);
-                                                                            let is_disabled = disabled || below_min || above_max;
+                // ── Calendar rows (always 6 — mirrors Blazor's `for i in 0..6`) ──
+                let rows: Vec<AnyView> = weeks.into_iter().map(|week| {
+                    let commit_row = commit_c.clone();
+                    let cells: Vec<AnyView> = week.into_iter().map(|day| {
+                        let commit_cell  = commit_row.clone();
+                        let is_cur_month = day.year() == year && day.month() == month;
+                        let is_selected  = selected.map_or(false, |s| s == day);
+                        let is_today     = day == today;
+                        let is_disabled  = disabled
+                            || min.map_or(false, |mn| day < mn)
+                            || max.map_or(false, |mx| day > mx);
 
-                                                                            let cell_class = ClassList::create("rz-state-default")
-                                                                                .add("rz-state-active", is_selected)
-                                                                                .add("rz-datepicker-today", is_today)
-                                                                                .add_disabled(is_disabled)
-                                                                                .finish();
+                        // <td> — `rz-datepicker-other-month` for cells outside current month.
+                        // Mirrors Blazor's GetDayCssClass on <td>.
+                        let td_class = if !is_cur_month {
+                            "rz-datepicker-other-month".to_string()
+                        } else {
+                            String::new()
+                        };
 
-                                                                            let on_day_click = move |_ev: web_sys::MouseEvent| {
-                                                                                if is_disabled || read_only {
-                                                                                    return;
-                                                                                }
-                                                                                let new_val = if allow_clear && is_selected {
-                                                                                    None
-                                                                                } else {
-                                                                                    Some(day)
-                                                                                };
-                                                                                commit_cell(new_val);
-                                                                            };
+                        // <span> — state classes. Mirrors Blazor's GetDayCssClass(date, dateArgs, false).
+                        let span_class = ClassList::create("rz-state-default")
+                            .add("rz-state-active",    is_selected)
+                            .add("rz-datepicker-today", is_today && is_cur_month)
+                            .add_disabled(is_disabled || !is_cur_month)
+                            .finish();
 
-                                                                            leptos::html::td()
-                                                                                .on(leptos::ev::click, on_day_click)
-                                                                                .child(
-                                                                                    leptos::html::span()
-                                                                                        .attr("class", cell_class)
-                                                                                        .child(day.day().to_string()),
-                                                                                )
-                                                                                .into_any()
-                                                                        }
-                                                                    }
-                                                                })
-                                                                .collect_view(),
-                                                        ).into_any()
-                                                    })
-                                                    .collect_view(),
-                                            ),
-                                        ),
-                                ),
-                        ),
-                )
-                .into_any()
-            }),
-    )
-    .into_any()
+                        let day_num = day.day().to_string();
+
+                        view! {
+                            <td
+                                class=td_class
+                                on:click=move |_| {
+                                    if is_disabled || read_only || !is_cur_month { return; }
+                                    let v = if allow_clear && is_selected { None } else { Some(day) };
+                                    commit_cell(v);
+                                }
+                            >
+                                <span class=span_class>{day_num}</span>
+                            </td>
+                        }.into_any()
+                    }).collect();
+
+                    view! { <tr>{cells}</tr> }.into_any()
+                }).collect();
+
+                view! {
+                    <div
+                        class=container_class
+                        style=popup_style
+                        on:mousedown=|ev: web_sys::MouseEvent| ev.prevent_default()
+                    >
+                        <div class="rz-calendar">
+
+                            // ── Calendar header ───────────────────────────────
+                            // Mirrors Blazor:
+                            //   <div class="rz-calendar-header">
+                            //     <button class="… rz-calendar-prev">
+                            //       <span class="notranslate rzi rz-calendar-prev-icon"></span>
+                            //     </button>
+                            //     <div class="rz-calendar-title"> … </div>
+                            //     <button class="… rz-calendar-next">
+                            //       <span class="notranslate rzi rz-calendar-next-icon"></span>
+                            //     </button>
+                            //   </div>
+                            // Prev/next icon classes have SCSS pseudo-elements for the chevron glyphs.
+                            <div class="rz-calendar-header">
+                                <button
+                                    type="button"
+                                    tabindex="-1"
+                                    class="rz-button rz-button-md rz-variant-text rz-button-icon-only rz-secondary rz-shade-default rz-calendar-prev"
+                                    disabled=disabled
+                                    on:click=prev_month
+                                >
+                                    <span class="notranslate rzi rz-calendar-prev-icon"></span>
+                                </button>
+
+                                // Title — Blazor uses two RadzenDropDown components for month/year.
+                                // We render plain text spans for simplicity (no dropdown needed for
+                                // basic date-only selection).
+                                <div class="rz-calendar-title">
+                                    <span class="rz-calendar-month">{month_name(month)}</span>
+                                    " "
+                                    <span class="rz-calendar-year">{year.to_string()}</span>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    tabindex="-1"
+                                    class="rz-button rz-button-md rz-variant-text rz-button-icon-only rz-secondary rz-shade-default rz-calendar-next"
+                                    disabled=disabled
+                                    on:click=next_month
+                                >
+                                    <span class="notranslate rzi rz-calendar-next-icon"></span>
+                                </button>
+                            </div>
+
+                            // ── Calendar grid ─────────────────────────────────
+                            // Mirrors Blazor: <div class="rz-calendar-view-container" tabindex="…">
+                            //   <table class="rz-calendar-view rz-calendar-month-view" …>
+                            <div class="rz-calendar-view-container" tabindex=effective_tab.to_string()>
+                                <table class="rz-calendar-view rz-calendar-month-view">
+                                    <thead>
+                                        <tr>{header_cells}</tr>
+                                    </thead>
+                                    <tbody>{rows}</tbody>
+                                </table>
+                            </div>
+
+                        </div>
+                    </div>
+                }.into_any()
+            }}
+        </div>
+    }.into_any()
 }

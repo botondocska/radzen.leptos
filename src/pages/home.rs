@@ -1,14 +1,13 @@
-use leptos::prelude::*;
 use chrono::NaiveDate;
+use leptos::prelude::*;
 use std::collections::HashMap;
 
 use crate::components::{
-    AlertStyle, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, Orientation,
-    RadzenAlert, RadzenBadge, RadzenButton, RadzenCard, RadzenCheckBox, RadzenDatePicker,
-    RadzenDropDown, RadzenIcon, RadzenLabel,RadzenLink, RadzenNumeric, RadzenPassword,
-    RadzenSelectBar, RadzenSelectBarItem, RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox,
-    Shade, TextAlign, TextStyle, Variant,
-    dropdown::DropDownItem,
+    AlertStyle, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, Orientation, RadzenAlert,
+    RadzenBadge, RadzenButton, RadzenCard, RadzenCheckBox, RadzenDatePicker, RadzenDropDown,
+    RadzenIcon, RadzenLabel, RadzenLink, RadzenNumeric, RadzenPassword, RadzenSelectBar,
+    RadzenSelectBarItem, RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox, Shade, TextAlign,
+    TextStyle, Variant, dropdown::DropDownItem,
 };
 
 /// Default Home Page
@@ -16,14 +15,14 @@ use crate::components::{
 pub fn Home() -> impl IntoView {
     // ── Timed-alert demo state ────────────────────────────────────────────────
     let show_success = RwSignal::new(false);
-    let show_danger  = RwSignal::new(false);
-    let show_info    = RwSignal::new(false);
+    let show_danger = RwSignal::new(false);
+    let show_info = RwSignal::new(false);
 
     let description = RwSignal::new(String::new());
     let live_search = RwSignal::new(String::new());
-    let username    = RwSignal::new(String::new());
-    let notes       = RwSignal::new(String::new());
-    let password    = RwSignal::new(String::new());
+    let username = RwSignal::new(String::new());
+    let notes = RwSignal::new(String::new());
+    let password = RwSignal::new(String::new());
 
     fn trigger(signal: RwSignal<bool>, ms: u32) {
         signal.set(true);
@@ -31,34 +30,34 @@ pub fn Home() -> impl IntoView {
     }
 
     // ── CheckBox signals ──────────────────────────────────────────────────────
-    let chk_single   = RwSignal::new(Some(false));
-    let chk_tri      = RwSignal::new(None::<bool>);
+    let chk_single = RwSignal::new(Some(false));
+    let chk_tri = RwSignal::new(None::<bool>);
     let chk_disabled = RwSignal::new(Some(true));
     let chk_readonly = RwSignal::new(Some(true));
 
     // ── DatePicker signals ────────────────────────────────────────────────────
-    let date_basic       = RwSignal::new(None::<NaiveDate>);
-    let date_bound       = RwSignal::new(Some(NaiveDate::from_ymd_opt(2025, 6, 15).unwrap()));
-    let date_inline      = RwSignal::new(None::<NaiveDate>);
+    let date_basic = RwSignal::new(None::<NaiveDate>);
+    let date_bound = RwSignal::new(Some(NaiveDate::from_ymd_opt(2025, 6, 15).unwrap()));
+    let date_inline = RwSignal::new(None::<NaiveDate>);
     let date_range_start = RwSignal::new(None::<NaiveDate>);
-    let date_range_end   = RwSignal::new(None::<NaiveDate>);
+    let date_range_end = RwSignal::new(None::<NaiveDate>);
 
     // ── Numeric signals ───────────────────────────────────────────────────────
-    let num_basic    = RwSignal::new(None::<f64>);
-    let num_bound    = RwSignal::new(Some(42.0_f64));
-    let num_clamped  = RwSignal::new(Some(5.0_f64));
-    let num_decimal  = RwSignal::new(Some(3.14_f64));
+    let num_basic = RwSignal::new(None::<f64>);
+    let num_bound = RwSignal::new(Some(42.0_f64));
+    let num_clamped = RwSignal::new(Some(5.0_f64));
+    let num_decimal = RwSignal::new(Some(3.14_f64));
     let num_currency = RwSignal::new(Some(1999.99_f64));
 
     // ── SelectBar signals ─────────────────────────────────────────────────────
-    let sb_view     = RwSignal::new("list".to_string());
-    let sb_multi    = RwSignal::new(vec!["bold".to_string()]);
+    let sb_view = RwSignal::new("list".to_string());
+    let sb_multi = RwSignal::new(vec!["bold".to_string()]);
     let sb_operator = RwSignal::new("And".to_string());
 
     // ── DropDown signals ──────────────────────────────────────────────────────
-    let dd_single   = RwSignal::new(String::new());
+    let dd_single = RwSignal::new(String::new());
     let dd_prefilled = RwSignal::new("2".to_string());
-    let dd_multi    = RwSignal::new(Vec::<String>::new());
+    let dd_multi = RwSignal::new(Vec::<String>::new());
     let dd_filtered = RwSignal::new(String::new());
 
     view! {

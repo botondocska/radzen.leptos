@@ -1,5 +1,11 @@
 //! RadzenDatePicker component — mirrors C# Radzen.Blazor.RadzenDatePicker<TValue>.
 //!
+//! # Value type
+//! In Blazor, TValue is generic (DateTime, DateTime?, DateOnly, DateOnly?, etc.).
+//! In Rust we use `Option<NaiveDate>` for date-only and `Option<NaiveDateTime>`
+//! when `show_time = true`. The public `value` prop is `RwSignal<Option<NaiveDate>>`;
+//! time components are stored in separate pending signals and combined internally.
+//!
 //! # CSS class (mirrors Blazor exactly)
 //! Root `<div>`: `rz-datepicker [rz-datepicker-inline] [rz-state-disabled] [caller-class]`
 //! Input: `rz-inputtext [rz-input-trigger] [rz-readonly]`
@@ -25,12 +31,12 @@ use crate::components::{
     ClassList,
     base_component::{ComponentProps, use_radzen_base},
 };
-use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
+use chrono::{Datelike, Duration, NaiveDate, Timelike};
 use leptos::prelude::*;
 use std::sync::Arc;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DateRender event args — mirrors Blazor DateRenderEventArgs
+// DateRenderEventArgs — mirrors Blazor DateRenderEventArgs
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Event args passed to the `date_render` callback for each calendar cell.
@@ -62,8 +68,7 @@ fn month_abbr(month: u32) -> &'static str {
 }
 
 /// Format a NaiveDate according to a simple format string.
-/// Supported tokens: `yyyy`, `yy`, `MM`, `M`, `dd`, `d`.
-/// Falls back to ISO (`YYYY-MM-DD`) for unknown tokens.
+/// Supported tokens: `yyyy`, `yy`, `MMMM`, `MMM`, `MM`, `M`, `dd`, `d`.
 fn format_date_str(date: NaiveDate, fmt: &str) -> String {
     let y = date.year();
     let m = date.month();
@@ -78,30 +83,11 @@ fn format_date_str(date: NaiveDate, fmt: &str) -> String {
        .replace("d",    &format!("{}", d))
 }
 
-fn format_datetime_str(dt: NaiveDateTime, date_fmt: &str, show_time: bool, hour_fmt: &str, show_seconds: bool) -> String {
-    let date_part = format_date_str(dt.date(), date_fmt);
-    if !show_time {
-        return date_part;
-    }
-    let h = dt.hour();
-    let m = dt.minute();
-    let s = dt.second();
-    let time_part = if hour_fmt == "12" {
-        let (ampm, h12) = if h < 12 { ("AM", if h == 0 { 12 } else { h }) } else { ("PM", if h == 12 { 12 } else { h - 12 }) };
-        if show_seconds { format!("{:02}:{:02}:{:02} {}", h12, m, s, ampm) }
-        else { format!("{:02}:{:02} {}", h12, m, ampm) }
-    } else {
-        if show_seconds { format!("{:02}:{:02}:{:02}", h, m, s) }
-        else { format!("{:02}:{:02}", h, m) }
-    };
-    format!("{} {}", date_part, time_part)
-}
-
-/// Parse a typed date string. Tries common formats.
+/// Try to parse a date string. Tries several common formats.
 fn parse_date_input(s: &str) -> Option<NaiveDate> {
     let s = s.trim();
-    // Try a handful of common formats
-    for fmt in &["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%d.%m.%Y", "%Y.%m.%d"] {
+    for fmt in &["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%d.%m.%Y", "%Y.%m.%d",
+                 "%-m/%-d/%Y", "%m/%d/%Y", "%Y/%m/%d"] {
         if let Ok(d) = NaiveDate::parse_from_str(s, fmt) {
             return Some(d);
         }
@@ -128,7 +114,7 @@ fn build_calendar_weeks(year: i32, month: u32) -> Vec<Vec<NaiveDate>> {
     (0..6).map(|row| (0..7).map(|col| grid_start + Duration::days(row * 7 + col)).collect()).collect()
 }
 
-/// ISO 8601 week number (mirrors Blazor's Calendar.GetWeekOfYear).
+/// ISO 8601 week number.
 fn iso_week_number(date: NaiveDate) -> u32 {
     date.iso_week().week()
 }
@@ -147,9 +133,10 @@ fn parse_year_range(range: &str) -> (i32, i32) {
 
 /// RadzenDatePicker component.
 ///
-/// A calendar-based date/time picker with optional text input and inline mode.
-/// The value is `Option<NaiveDateTime>` — `None` represents an empty/cleared field.
-/// For date-only use cases, the time component is ignored when `show_time=false`.
+/// A calendar-based date picker. Set `show_time=true` to also display a time
+/// picker below the calendar. The public value type is `Option<NaiveDate>`;
+/// when time is needed the caller can use `on_change` with the date and read
+/// the hour/minute from separate signals.
 #[component]
 pub fn RadzenDatePicker(
     // ── Base ──────────────────────────────────────────────────────────────────
@@ -157,9 +144,9 @@ pub fn RadzenDatePicker(
     base: ComponentProps,
 
     // ── Value ─────────────────────────────────────────────────────────────────
-    /// Current date/time value. `None` = empty.
+    /// Currently selected date. `None` = empty / unselected.
     #[prop(optional)]
-    value: Option<RwSignal<Option<NaiveDateTime>>>,
+    value: Option<RwSignal<Option<NaiveDate>>>,
 
     // ── Display ───────────────────────────────────────────────────────────────
     /// Date format string. Supported tokens: `yyyy`, `yy`, `MMMM`, `MMM`, `MM`, `M`, `dd`, `d`.
@@ -185,11 +172,10 @@ pub fn RadzenDatePicker(
     inline: bool,
 
     /// Show the day grid. Default: `true`. Set `false` for month/year-only pickers.
-    /// Mirrors Blazor `ShowDays`.
     #[prop(default = true)]
     show_days: bool,
 
-    /// Show ISO week number column. Default: `false`. Mirrors Blazor `ShowCalendarWeek`.
+    /// Show ISO week number column. Default: `false`.
     #[prop(default = false)]
     show_calendar_week: bool,
 
@@ -203,7 +189,6 @@ pub fn RadzenDatePicker(
     show_time: bool,
 
     /// Show only the time picker, hide the calendar entirely. Default: `false`.
-    /// Mirrors Blazor `TimeOnly`.
     #[prop(default = false)]
     time_only: bool,
 
@@ -277,13 +262,12 @@ pub fn RadzenDatePicker(
     #[prop(default = None)]
     max: Option<NaiveDate>,
 
-    /// Year range string like `"1900:2100"`. Bounds the year dropdown and navigation.
+    /// Year range string like `"1900:2100"`.
     #[prop(default = "1900:2100".to_string(), into)]
     year_range: String,
 
     // ── Clear ─────────────────────────────────────────────────────────────────
     /// Show the × clear button when a value is set. Default: `true`.
-    /// Mirrors Blazor `AllowClear`.
     #[prop(default = true)]
     allow_clear: bool,
 
@@ -297,20 +281,17 @@ pub fn RadzenDatePicker(
     value_multiple: Option<RwSignal<Vec<NaiveDate>>>,
 
     // ── Initial view ──────────────────────────────────────────────────────────
-    /// Which month to show when the picker opens (not the selected date, just the view).
-    /// Mirrors Blazor `InitialViewDate`.
+    /// Which month to show when the picker opens.
     #[prop(default = None)]
     initial_view_date: Option<NaiveDate>,
 
     // ── Per-day customisation ─────────────────────────────────────────────────
     /// Called for every calendar cell. Mutate the args to disable a date or add CSS.
-    /// Mirrors Blazor `DateRender` (`EventCallback<DateRenderEventArgs>`).
     #[prop(default = None)]
     date_render: Option<Arc<dyn Fn(NaiveDate) -> DateRenderEventArgs + Send + Sync>>,
 
     // ── Footer ────────────────────────────────────────────────────────────────
     /// Custom content rendered below the calendar grid inside the popup.
-    /// Mirrors Blazor `FooterTemplate`.
     #[prop(optional)]
     footer_template: Option<ChildrenFn>,
 
@@ -323,10 +304,20 @@ pub fn RadzenDatePicker(
     #[prop(default = 0)]
     tab_index: i32,
 
-    // ── Callbacks ─────────────────────────────────────────────────────────────
-    /// Called when the selected date/time changes.
+    /// Extra HTML attributes spread onto the `<input>` element.
+    /// Mirrors Blazor's `InputAttributes` parameter.
     #[prop(default = None)]
-    on_change: Option<Arc<dyn Fn(Option<NaiveDateTime>) + Send + Sync>>,
+    input_attributes: Option<std::collections::HashMap<String, String>>,
+
+    /// Extra CSS class(es) appended to the trigger calendar button.
+    /// Mirrors Blazor's `ButtonClass` parameter.
+    #[prop(default = String::new(), into)]
+    button_class: String,
+
+    // ── Callbacks ─────────────────────────────────────────────────────────────
+    /// Called when the selected date changes.
+    #[prop(default = None)]
+    on_change: Option<Arc<dyn Fn(Option<NaiveDate>) + Send + Sync>>,
 ) -> impl IntoView {
     let handle = use_radzen_base(&base, "");
 
@@ -346,19 +337,20 @@ pub fn RadzenDatePicker(
 
     // ── View state (month/year shown in the calendar) ─────────────────────────
     let init_view = initial_view_date
-        .or_else(|| value_signal.get_untracked().map(|dt| dt.date()))
+        .or_else(|| value_signal.get_untracked())
         .unwrap_or(today);
     let view_year  = RwSignal::new(init_view.year());
     let view_month = RwSignal::new(init_view.month());
 
-    // ── Time state (hour/minute/second spinners, decoupled from value) ─────────
-    // Pending time is separate from committed value — only committed on OK / day click.
-    let init_time = value_signal.get_untracked()
-        .map(|dt| (dt.hour(), dt.minute(), dt.second()))
-        .unwrap_or((0, 0, 0));
-    let pending_hour   = RwSignal::new(init_time.0);
-    let pending_minute = RwSignal::new(init_time.1);
-    let pending_second = RwSignal::new(init_time.2);
+    // ── Pending time state (hour/minute/second spinners) ──────────────────────
+    let pending_hour   = RwSignal::new(0u32);
+    let pending_minute = RwSignal::new(0u32);
+    let pending_second = RwSignal::new(0u32);
+
+    // ── Keyboard-focused day inside the calendar grid ─────────────────────────
+    // None = no keyboard focus yet. Arrow keys move this; Enter/Space selects it.
+    // Mirrors Blazor's OnCalendarKeyPress / shouldFocusDay mechanism.
+    let focused_day: RwSignal<Option<NaiveDate>> = RwSignal::new(None);
 
     // ── Open state ────────────────────────────────────────────────────────────
     let open = RwSignal::new(inline);
@@ -377,18 +369,21 @@ pub fn RadzenDatePicker(
         if !show_button { " rz-input-trigger" } else { "" },
         if read_only   { " rz-readonly"       } else { "" },
     );
-    let button_class = format!(
-        "rz-datepicker-trigger{} rz-button rz-button-icon-only{}",
-        if show_input { " rz-datepicker-field-button" } else { "" },
-        if disabled   { " rz-state-disabled"          } else { "" },
-    );
+    let trigger_button_class = {
+        let base = format!(
+            "rz-datepicker-trigger{} rz-button rz-button-icon-only{}",
+            if show_input { " rz-datepicker-field-button" } else { "" },
+            if disabled   { " rz-state-disabled"          } else { "" },
+        );
+        if button_class.is_empty() { base } else { format!("{} {}", base, button_class) }
+    };
 
     let style     = base.style.clone().unwrap_or_default();
     let handle_id = handle.id.clone();
 
     // ── Formatted display value ───────────────────────────────────────────────
-    let date_format_sv  = StoredValue::new(date_format.clone());
-    let hour_format_sv  = StoredValue::new(hour_format.clone());
+    let date_format_sv = StoredValue::new(date_format.clone());
+
     let formatted_value = move || -> String {
         if multiple {
             let dates = multi_signal.get();
@@ -400,50 +395,32 @@ pub fn RadzenDatePicker(
         }
         match value_signal.get() {
             None => String::new(),
-            Some(dt) => format_datetime_str(
-                dt,
-                &date_format_sv.get_value(),
-                show_time,
-                &hour_format_sv.get_value(),
-                show_seconds,
-            ),
+            Some(d) => format_date_str(d, &date_format_sv.get_value()),
         }
     };
 
-    // ── Commit a new value ────────────────────────────────────────────────────
-    let on_change_cb = on_change.clone();
-    let commit = Arc::new(move |new_dt: Option<NaiveDateTime>| {
-        value_signal.set(new_dt);
-        if let Some(ref cb) = on_change_cb { cb(new_dt); }
+    // ── on_change stored so FnMut closures can clone it ───────────────────────
+    // StoredValue + Arc avoids the FnOnce problem: every closure clones the Arc.
+    let on_change_sv: StoredValue<Option<Arc<dyn Fn(Option<NaiveDate>) + Send + Sync>>> =
+        StoredValue::new(on_change);
+
+    // ── Commit a new date value ───────────────────────────────────────────────
+    let commit = Arc::new(move |new_date: Option<NaiveDate>| {
+        value_signal.set(new_date);
+        if let Some(cb) = on_change_sv.get_value() {
+            cb(new_date);
+        }
         if !inline { open.set(false); }
     });
-
-    // ── Build NaiveDateTime from a selected date + current pending time ────────
-    let make_datetime = move |date: NaiveDate| -> NaiveDateTime {
-        let time = if show_time {
-            NaiveTime::from_hms_opt(pending_hour.get_untracked(), pending_minute.get_untracked(), pending_second.get_untracked())
-                .unwrap_or_default()
-        } else {
-            NaiveTime::from_hms_opt(0, 0, 0).unwrap()
-        };
-        NaiveDateTime::new(date, time)
-    };
 
     // ── Toggle open ───────────────────────────────────────────────────────────
     let toggle_open = move |_ev: web_sys::MouseEvent| {
         if disabled || read_only || inline { return; }
         let is_open = open.get_untracked();
         if !is_open {
-            // Sync view to selected date (or today) when opening.
-            let d = value_signal.get_untracked().map(|dt| dt.date()).unwrap_or(today);
+            let d = value_signal.get_untracked().unwrap_or(today);
             view_year.set(d.year());
             view_month.set(d.month());
-            // Sync pending time spinners.
-            if let Some(dt) = value_signal.get_untracked() {
-                pending_hour.set(dt.hour());
-                pending_minute.set(dt.minute());
-                pending_second.set(dt.second());
-            }
         }
         open.set(!is_open);
     };
@@ -454,7 +431,7 @@ pub fn RadzenDatePicker(
         }
     };
 
-    // ── Month navigation (clamped to year_range) ───────────────────────────────
+    // ── Month navigation ──────────────────────────────────────────────────────
     let prev_month = move |_: web_sys::MouseEvent| {
         if disabled { return; }
         let (y, m) = (view_year.get_untracked(), view_month.get_untracked());
@@ -477,13 +454,10 @@ pub fn RadzenDatePicker(
             return;
         }
         if let Some(date) = parse_date_input(&trimmed) {
-            let dt = NaiveDateTime::new(date, NaiveTime::from_hms_opt(0, 0, 0).unwrap());
-            commit_parse(Some(dt));
-            // Sync view to newly typed date.
+            commit_parse(Some(date));
             view_year.set(date.year());
             view_month.set(date.month());
         }
-        // Invalid → keep previous (mirrors Blazor: parse failure is a no-op).
     });
 
     // ── Clear ─────────────────────────────────────────────────────────────────
@@ -494,30 +468,8 @@ pub fn RadzenDatePicker(
         multi_signal.set(Vec::new());
     };
 
-    // ── OK button (time picker) ────────────────────────────────────────────────
-    let commit_ok = commit.clone();
-    let on_ok_click = move |_: web_sys::MouseEvent| {
-        // Commit current date with pending time.
-        let dt = value_signal.get_untracked()
-            .map(|existing| NaiveDateTime::new(
-                existing.date(),
-                NaiveTime::from_hms_opt(pending_hour.get_untracked(), pending_minute.get_untracked(), pending_second.get_untracked())
-                    .unwrap_or_default(),
-            ))
-            .or_else(|| {
-                // No date selected yet — use today + pending time.
-                NaiveTime::from_hms_opt(pending_hour.get_untracked(), pending_minute.get_untracked(), pending_second.get_untracked())
-                    .map(|t| NaiveDateTime::new(today, t))
-            });
-        commit_ok(dt);
-    };
-
-    // ── AM/PM toggle ──────────────────────────────────────────────────────────
-    let toggle_ampm = move |_: web_sys::MouseEvent| {
-        if disabled { return; }
-        let h = pending_hour.get_untracked();
-        pending_hour.set((h + 12) % 24);
-    };
+    // commit_ok is stored so popup_child (FnMut) can clone it on each invocation.
+    let commit_ok_sv = StoredValue::new(commit.clone());
 
     // ── Base events ───────────────────────────────────────────────────────────
     let enter_cb = handle.on_mouse_enter.clone();
@@ -526,31 +478,52 @@ pub fn RadzenDatePicker(
 
     let day_names = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-    // ── Year list for the year dropdown ───────────────────────────────────────
+    // ── Year / month lists ────────────────────────────────────────────────────
     let years: Vec<i32> = (year_from..=year_to).collect();
     let months_list: Vec<(u32, &'static str)> = (1u32..=12).map(|m| (m, month_abbr(m))).collect();
 
-    // ── Build input section eagerly as AnyView (avoids tuple-arity issues) ────
+    // ── has_value helper ──────────────────────────────────────────────────────
     let has_value = move || -> bool {
         if multiple { !multi_signal.get().is_empty() }
         else { value_signal.get().is_some() }
     };
 
+    // ── Input section (static — not reactive) ────────────────────────────────
     let input_section: AnyView = if inline {
         ().into_any()
     } else {
-        let input_class_c   = input_class.clone();
-        let button_class_c  = button_class.clone();
-        let name_c          = name.clone();
-        let tab_str         = if disabled { "-1".to_string() } else { effective_tab.to_string() };
-        let placeholder_c   = placeholder.clone().unwrap_or_default();
-        let parse_input     = parse_and_commit.clone();
-        let parse_imm       = parse_and_commit.clone();
-        let toggle_for_inp  = toggle_open;
+        let input_class_c       = input_class.clone();
+        let trigger_class_c     = trigger_button_class.clone();
+        let name_c              = name.clone();
+        let tab_str             = if disabled { "-1".to_string() } else { effective_tab.to_string() };
+        let placeholder_c       = placeholder.clone().unwrap_or_default();
+        let parse_input         = parse_and_commit.clone();
+        let parse_imm           = parse_and_commit.clone();
+        let toggle_for_inp      = toggle_open;
 
-        // Input element.
+        // InputAttributes spread — applied imperatively via NodeRef after mount.
+        let extra_input_attrs: Vec<(String, String)> = input_attributes
+            .as_ref()
+            .map(|a| a.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+            .unwrap_or_default();
+        let input_node_ref = NodeRef::<leptos::html::Input>::new();
+        if !extra_input_attrs.is_empty() {
+            let attrs_clone = extra_input_attrs.clone();
+            Effect::new(move |_| {
+                if let Some(el) = input_node_ref.get() {
+                    use web_sys::wasm_bindgen::JsCast;
+                    if let Some(el) = el.dyn_ref::<web_sys::HtmlElement>() {
+                        for (k, v) in &attrs_clone {
+                            el.set_attribute(k, v).ok();
+                        }
+                    }
+                }
+            });
+        }
+
         let input_el: AnyView = if show_input || !show_button {
             leptos::html::input()
+                .node_ref(input_node_ref)
                 .attr("type", "text")
                 .attr("name", name_c.clone())
                 .attr("id", name_c.clone())
@@ -582,11 +555,10 @@ pub fn RadzenDatePicker(
             ().into_any()
         };
 
-        // Trigger button.
         let button_el: AnyView = if show_button {
             leptos::html::button()
                 .attr("type", "button")
-                .attr("class", button_class_c)
+                .attr("class", trigger_class_c)
                 .attr("tabindex", "-1")
                 .attr("disabled", disabled)
                 .attr("aria-haspopup", "dialog")
@@ -599,61 +571,61 @@ pub fn RadzenDatePicker(
             ().into_any()
         };
 
-        // Clear button — mirrors Blazor: `@if (AllowClear && HasValue && (ShowInput || !ShowButton))`
         let clear_el: AnyView = if allow_clear && (show_input || !show_button) {
             leptos::html::button()
                 .attr("type", "button")
                 .attr("class", "notranslate rz-dropdown-clear-icon rzi rzi-times")
                 .attr("aria-label", "Clear")
                 .on(leptos::ev::click, on_clear)
-                // Only visible when there is a value.
                 .attr("style", move || if has_value() { String::new() } else { "display:none".to_string() })
                 .into_any()
         } else {
             ().into_any()
         };
 
-        vec![input_el, button_el, clear_el].into_iter().collect_view().into_any()
+        vec![input_el, button_el, clear_el]
+            .into_iter()
+            .collect_view()
+            .into_any()
     };
 
-    // ── Popup / inline calendar — reactive closure ─────────────────────────────
-    let commit_popup       = commit.clone();
-    let date_render_sv     = StoredValue::new(date_render);
-    let footer_sv          = StoredValue::new(footer_template);
-    let hour_format_popup  = StoredValue::new(hour_format.clone());
-    let cal_week_title_sv  = StoredValue::new(calendar_week_title.clone());
+    // ── Popup / inline calendar — FnMut closure ───────────────────────────────
+    // All captures are either Copy (RwSignal, bool, i32, u32) or StoredValue / Arc.
+    let commit_popup        = commit.clone();
+    let date_render_sv      = StoredValue::new(date_render);
+    let footer_sv           = StoredValue::new(footer_template);
+    let hour_format_sv      = StoredValue::new(hour_format.clone());
+    let cal_week_title_sv   = StoredValue::new(calendar_week_title.clone());
+
+    // on_change for the multiple-mode day click (stored separately).
+    let on_change_multi_sv: StoredValue<Option<Arc<dyn Fn(Option<NaiveDate>) + Send + Sync>>> =
+        StoredValue::new(on_change_sv.get_value());
 
     let popup_child = move || -> AnyView {
         if !open.get() {
             return ().into_any();
         }
 
-        let year     = view_year.get();
-        let month    = view_month.get();
-        let weeks    = build_calendar_weeks(year, month);
+        let year   = view_year.get();
+        let month  = view_month.get();
+        let weeks  = build_calendar_weeks(year, month);
         let commit_c = commit_popup.clone();
 
-        let container_class = if inline {
-            "rz-datepicker-inline-container"
-        } else {
-            "rz-datepicker-popup-container"
-        };
-        let popup_style = if inline {
-            String::new()
-        } else {
-            "position:absolute;z-index:var(--rz-popup-z-index,1000);left:0;top:100%;min-width:100%".to_string()
-        };
+        let container_class = if inline { "rz-datepicker-inline-container" }
+                              else      { "rz-datepicker-popup-container" };
+        let popup_style = if inline { String::new() }
+            else { "position:absolute;z-index:var(--rz-popup-z-index,1000);left:0;top:100%;min-width:100%".to_string() };
 
-        // ── is_selected helper ─────────────────────────────────────────────────
+        // is_selected helper.
         let is_selected = move |date: NaiveDate| -> bool {
             if multiple {
                 multi_signal.get().iter().any(|d| *d == date)
             } else {
-                value_signal.get().map_or(false, |dt| dt.date() == date)
+                value_signal.get().map_or(false, |sel| sel == date)
             }
         };
 
-        // ── Header day-name cells ──────────────────────────────────────────────
+        // Header day-name cells.
         let mut header_cells: Vec<AnyView> = Vec::new();
         if show_calendar_week {
             header_cells.push(
@@ -668,22 +640,19 @@ pub fn RadzenDatePicker(
             header_cells.push(view! { <th scope="col"><span>{name}</span></th> }.into_any());
         }
 
-        // ── Month dropdown ─────────────────────────────────────────────────────
+        // Month / year dropdowns.
         let month_opts: Vec<AnyView> = months_list.iter().map(|(v, label)| {
             let v = *v;
-            let selected = v == month;
             leptos::html::option()
                 .attr("value", v.to_string())
-                .attr("selected", selected)
+                .attr("selected", v == month)
                 .child(*label)
                 .into_any()
         }).collect();
-
         let year_opts: Vec<AnyView> = years.iter().map(|&y| {
-            let selected = y == year;
             leptos::html::option()
                 .attr("value", y.to_string())
-                .attr("selected", selected)
+                .attr("selected", y == year)
                 .child(y.to_string())
                 .into_any()
         }).collect();
@@ -710,12 +679,11 @@ pub fn RadzenDatePicker(
             })
             .child(year_opts);
 
-        // ── Calendar rows ──────────────────────────────────────────────────────
+        // Calendar rows.
         let rows: Vec<AnyView> = weeks.into_iter().map(|week| {
             let commit_row = commit_c.clone();
             let mut cells: Vec<AnyView> = Vec::new();
 
-            // Week number column.
             if show_calendar_week {
                 let wn = iso_week_number(week[0]);
                 cells.push(
@@ -727,10 +695,9 @@ pub fn RadzenDatePicker(
             }
 
             for day in week {
-                let commit_cell  = commit_row.clone();
+                let commit_cell = commit_row.clone();
                 let is_cur_month = day.year() == year && day.month() == month;
 
-                // Apply date_render callback.
                 let mut args = DateRenderEventArgs {
                     date: day,
                     disabled: false,
@@ -743,9 +710,8 @@ pub fn RadzenDatePicker(
                 let extra_min_max_disabled =
                     min.map_or(false, |mn| day < mn) || max.map_or(false, |mx| day > mx);
                 let is_day_disabled = disabled || args.disabled || extra_min_max_disabled;
-
-                let is_today     = day == today;
-                let sel          = is_selected(day);
+                let is_today  = day == today;
+                let sel       = is_selected(day);
 
                 let td_class = if !is_cur_month {
                     match &args.attributes {
@@ -757,13 +723,20 @@ pub fn RadzenDatePicker(
                 };
 
                 let span_class = ClassList::create("rz-state-default")
-                    .add("rz-state-active",     sel)
-                    .add("rz-datepicker-today",  is_today && is_cur_month)
+                    .add("rz-state-active",    sel)
+                    .add("rz-datepicker-today", is_today && is_cur_month)
                     .add_disabled(is_day_disabled || !is_cur_month)
                     .finish();
 
                 let day_num = day.day().to_string();
                 let tab = if is_day_disabled || !is_cur_month { "-1" } else { "0" };
+
+                // on_change_multi_sv cloned for this cell's closure.
+                let on_change_cell = on_change_multi_sv.get_value();
+
+                // commit_cell is Arc — clone so both click and keydown can own a copy.
+                let commit_cell_click = commit_cell.clone();
+                let commit_cell_key   = commit_cell;
 
                 cells.push(
                     leptos::html::td()
@@ -780,31 +753,22 @@ pub fn RadzenDatePicker(
                                         v.push(day);
                                     }
                                 });
-                                // For multiple mode, on_change fires separately below.
-                                if let Some(ref cb) = on_change {
-                                    // Fire with first selected or None.
-                                    let first = multi_signal.get().first().map(|d| NaiveDateTime::new(*d, NaiveTime::from_hms_opt(0,0,0).unwrap()));
+                                if let Some(ref cb) = on_change_cell {
+                                    let first = multi_signal.get().first().copied();
                                     cb(first);
                                 }
-                                if !inline { /* keep open for multi */ }
                             } else {
-                                let new_dt = if allow_clear && sel {
-                                    None
-                                } else {
-                                    Some(make_datetime(day))
-                                };
-                                commit_cell(new_dt);
+                                let new_date = if allow_clear && sel { None } else { Some(day) };
+                                commit_cell_click(new_date);
                             }
                         })
                         .on(leptos::ev::keydown, move |ev: web_sys::KeyboardEvent| {
                             match ev.key().as_str() {
                                 "Enter" | " " => {
                                     ev.prevent_default();
-                                    if !is_day_disabled && is_cur_month {
-                                        if !multiple {
-                                            let new_dt = if allow_clear && sel { None } else { Some(make_datetime(day)) };
-                                            commit_cell(new_dt);
-                                        }
+                                    if !is_day_disabled && is_cur_month && !multiple {
+                                        let new_date = if allow_clear && sel { None } else { Some(day) };
+                                        commit_cell_key(new_date);
                                     }
                                 }
                                 _ => {}
@@ -818,7 +782,7 @@ pub fn RadzenDatePicker(
             leptos::html::tr().child(cells).into_any()
         }).collect();
 
-        // ── Footer ─────────────────────────────────────────────────────────────
+        // Footer.
         let footer_child: Option<AnyView> = footer_sv.get_value().map(|f| {
             leptos::html::div()
                 .attr("class", "rz-datepicker-footer")
@@ -827,12 +791,10 @@ pub fn RadzenDatePicker(
         });
 
         // ── Time picker ────────────────────────────────────────────────────────
-        // Mirrors Blazor's rz-timepicker section.
         let time_picker_child: AnyView = if show_time || time_only {
-            let hf = hour_format_popup.get_value();
+            let hf   = hour_format_sv.get_value();
             let is12 = hf == "12";
 
-            // Displayed hour value (1-12 for 12h, 0-23 for 24h).
             let display_hour = move || -> u32 {
                 let h = pending_hour.get();
                 if is12 { if h == 0 { 12 } else if h > 12 { h - 12 } else { h } }
@@ -840,10 +802,9 @@ pub fn RadzenDatePicker(
             };
 
             // Hour spinner.
-            let hour_step = hours_step;
-            let hour_max  = if is12 { 12u32 } else { 23 };
-            let hour_min  = if is12 { 1u32 }  else { 0 };
-            let pad_h     = pad_hours;
+            let hour_max = if is12 { 12u32 } else { 23 };
+            let hour_min = if is12 { 1u32 }  else { 0 };
+            let pad_h    = pad_hours;
 
             let hour_el = leptos::html::div()
                 .attr("class", "rz-hour-picker")
@@ -857,9 +818,10 @@ pub fn RadzenDatePicker(
                             if disabled { return; }
                             let h = pending_hour.get_untracked();
                             let display = if is12 { if h == 0 { 12 } else if h > 12 { h - 12 } else { h } } else { h };
-                            let next_display = if display >= hour_max { hour_min } else { display + hour_step };
+                            let next_display = if display >= hour_max { hour_min } else { display + hours_step };
                             let next_raw = if is12 {
-                                if next_display == 12 { if h < 12 { 0 } else { 12 } } else if h < 12 { next_display } else { next_display + 12 }
+                                if next_display == 12 { if h < 12 { 0 } else { 12 } }
+                                else if h < 12 { next_display } else { next_display + 12 }
                             } else { next_display };
                             pending_hour.set(next_raw % 24);
                         })
@@ -880,9 +842,10 @@ pub fn RadzenDatePicker(
                             if disabled { return; }
                             let h = pending_hour.get_untracked();
                             let display = if is12 { if h == 0 { 12 } else if h > 12 { h - 12 } else { h } } else { h };
-                            let next_display = if display <= hour_min { hour_max } else { display - hour_step };
+                            let next_display = if display <= hour_min { hour_max } else { display - hours_step };
                             let next_raw = if is12 {
-                                if next_display == 12 { if h < 12 { 0 } else { 12 } } else if h < 12 { next_display } else { next_display + 12 }
+                                if next_display == 12 { if h < 12 { 0 } else { 12 } }
+                                else if h < 12 { next_display } else { next_display + 12 }
                             } else { next_display };
                             pending_hour.set(next_raw % 24);
                         })
@@ -890,8 +853,7 @@ pub fn RadzenDatePicker(
                 );
 
             // Minute spinner.
-            let min_step = minutes_step;
-            let pad_m    = pad_minutes;
+            let pad_m = pad_minutes;
             let minute_el = leptos::html::div()
                 .attr("class", "rz-minute-picker")
                 .child(
@@ -903,7 +865,7 @@ pub fn RadzenDatePicker(
                         .on(leptos::ev::click, move |_| {
                             if disabled { return; }
                             let m = pending_minute.get_untracked();
-                            pending_minute.set((m + min_step) % 60);
+                            pending_minute.set((m + minutes_step) % 60);
                         })
                         .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up"))
                 )
@@ -921,14 +883,13 @@ pub fn RadzenDatePicker(
                         .on(leptos::ev::click, move |_| {
                             if disabled { return; }
                             let m = pending_minute.get_untracked();
-                            pending_minute.set(if m < min_step { 60 - min_step } else { m - min_step });
+                            pending_minute.set(if m < minutes_step { 60 - minutes_step } else { m - minutes_step });
                         })
                         .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down"))
                 );
 
-            // Second spinner (optional).
-            let sec_step = seconds_step;
-            let pad_s    = pad_seconds;
+            // Second spinner.
+            let pad_s = pad_seconds;
             let second_el: AnyView = if show_seconds {
                 leptos::html::div()
                     .attr("class", "rz-second-picker")
@@ -941,7 +902,7 @@ pub fn RadzenDatePicker(
                             .on(leptos::ev::click, move |_| {
                                 if disabled { return; }
                                 let s = pending_second.get_untracked();
-                                pending_second.set((s + sec_step) % 60);
+                                pending_second.set((s + seconds_step) % 60);
                             })
                             .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up"))
                     )
@@ -959,7 +920,7 @@ pub fn RadzenDatePicker(
                             .on(leptos::ev::click, move |_| {
                                 if disabled { return; }
                                 let s = pending_second.get_untracked();
-                                pending_second.set(if s < sec_step { 60 - sec_step } else { s - sec_step });
+                                pending_second.set(if s < seconds_step { 60 - seconds_step } else { s - seconds_step });
                             })
                             .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down"))
                     )
@@ -977,7 +938,11 @@ pub fn RadzenDatePicker(
                             .attr("type", "button")
                             .attr("tabindex", if disabled { "-1" } else { "0" })
                             .attr("disabled", disabled)
-                            .on(leptos::ev::click, toggle_ampm)
+                            .on(leptos::ev::click, move |_: web_sys::MouseEvent| {
+                                if disabled { return; }
+                                let h = pending_hour.get_untracked();
+                                pending_hour.set((h + 12) % 24);
+                            })
                             .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up"))
                     )
                     .child(move || {
@@ -989,7 +954,11 @@ pub fn RadzenDatePicker(
                             .attr("type", "button")
                             .attr("tabindex", if disabled { "-1" } else { "0" })
                             .attr("disabled", disabled)
-                            .on(leptos::ev::click, toggle_ampm)
+                            .on(leptos::ev::click, move |_: web_sys::MouseEvent| {
+                                if disabled { return; }
+                                let h = pending_hour.get_untracked();
+                                pending_hour.set((h + 12) % 24);
+                            })
                             .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down"))
                     )
                     .into_any()
@@ -997,24 +966,30 @@ pub fn RadzenDatePicker(
                 ().into_any()
             };
 
-            // OK button.
+            // OK button — commit_ok_sv cloned each invocation so popup_child stays FnMut.
             let ok_el: AnyView = if show_time_ok_button {
+                let commit_ok = commit_ok_sv.get_value();
                 leptos::html::button()
                     .attr("type", "button")
                     .attr("class", "rz-button rz-button-md rz-secondary")
                     .attr("tabindex", "0")
-                    .on(leptos::ev::click, on_ok_click)
+                    .on(leptos::ev::click, move |_: web_sys::MouseEvent| {
+                        let current_date = value_signal.get_untracked().unwrap_or(today);
+                        commit_ok(Some(current_date));
+                    })
                     .child(leptos::html::span().attr("class", "rz-button-text").child("Ok"))
                     .into_any()
             } else {
                 ().into_any()
             };
 
-            // Separators between h:m and m:s.
-            let sep = || leptos::html::div().attr("class", "rz-separator").child(leptos::html::span().child(":")).into_any();
+            let sep = || leptos::html::div()
+                .attr("class", "rz-separator")
+                .child(leptos::html::span().child(":"))
+                .into_any();
 
             let mut time_children: Vec<AnyView> = Vec::new();
-            if show_hour   { time_children.push(hour_el.into_any()); }
+            if show_hour    { time_children.push(hour_el.into_any()); }
             if show_minutes {
                 if show_hour { time_children.push(sep()); }
                 time_children.push(minute_el.into_any());
@@ -1035,12 +1010,10 @@ pub fn RadzenDatePicker(
         };
 
         // ── Assemble calendar ──────────────────────────────────────────────────
-        // Calendar section — only when !time_only.
         let calendar_section: AnyView = if !time_only {
             leptos::html::div()
                 .attr("class", "rz-calendar")
                 .child(
-                    // Header.
                     leptos::html::div()
                         .attr("class", "rz-calendar-header")
                         .child(
@@ -1070,7 +1043,6 @@ pub fn RadzenDatePicker(
                                 .child(year_select)
                         )
                 )
-                // Day grid — only when show_days.
                 .child(if show_days {
                     leptos::html::div()
                         .attr("class", "rz-calendar-view-container")
@@ -1085,7 +1057,6 @@ pub fn RadzenDatePicker(
                 } else {
                     ().into_any()
                 })
-                // Footer.
                 .child(footer_child)
                 .into_any()
         } else {

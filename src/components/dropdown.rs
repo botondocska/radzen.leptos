@@ -252,7 +252,7 @@ pub fn RadzenDropDown(
                         v.push(item_value.clone());
                     }
                 });
-                if let Some(ref cb) = **on_change_cb_si {
+                if let Some(ref cb) = *on_change_cb_si {
                     cb(value_multiple.unwrap().get().join(","));
                 }
             }
@@ -260,7 +260,7 @@ pub fn RadzenDropDown(
             if let Some(single_sig) = value {
                 single_sig.set(item_value.clone());
             }
-            if let Some(ref cb) = **on_change_cb_si {
+            if let Some(ref cb) = *on_change_cb_si {
                 cb(item_value);
             }
             open.set(false);
@@ -282,12 +282,12 @@ pub fn RadzenDropDown(
             let currently_all = multi_sig.get().len() == all_vals.len();
             if currently_all {
                 multi_sig.set(vec![]);
-                if let Some(ref cb) = **on_change_cb_sa {
+                if let Some(ref cb) = *on_change_cb_sa {
                     cb(String::new());
                 }
             } else {
                 multi_sig.set(all_vals.clone());
-                if let Some(ref cb) = **on_change_cb_sa {
+                if let Some(ref cb) = *on_change_cb_sa {
                     cb(all_vals.join(","));
                 }
             }
@@ -500,49 +500,49 @@ pub fn RadzenDropDown(
                     };
 
                     // Mirrors Blazor's `<div class="rz-multiselect-header rz-helper-clearfix">` block.
-                    let mut header = leptos::html::div()
-                        .attr("class", "rz-multiselect-header rz-helper-clearfix");
+                    // Children are collected as AnyView to avoid unique-type explosion from
+                    // chained .child() calls on the mutable `header` variable.
+                    let mut header_children: Vec<AnyView> = Vec::new();
 
                     if allow_select_all && !allow_filtering {
-                        header = header
-                            // Checkbox
-                            .child(
-                                leptos::html::div()
-                                    .attr("class", "rz-chkbox")
-                                    .attr("role", "checkbox")
-                                    .attr("aria-checked", if is_all { "true" } else { "false" })
-                                    .on(leptos::ev::click, {
-                                        let sa2 = sa.clone();
-                                        move |ev: web_sys::MouseEvent| {
-                                            ev.stop_propagation();
-                                            sa2();
-                                        }
-                                    })
-                                    .child(
-                                        leptos::html::div()
-                                            .attr("class", chkbox_box_class)
-                                            .child(
-                                                leptos::html::span()
-                                                    .attr("class", chkbox_icon_class),
-                                            ),
-                                    ),
-                            )
-                            // "Select All" button label
-                            .child(
-                                leptos::html::button()
-                                    .attr("type", "button")
-                                    .attr("class", "rz-multiselect-selectall")
-                                    .attr("disabled", disabled || read_only)
-                                    .on(leptos::ev::click, move |ev: web_sys::MouseEvent| {
+                        header_children.push(
+                            leptos::html::div()
+                                .attr("class", "rz-chkbox")
+                                .attr("role", "checkbox")
+                                .attr("aria-checked", if is_all { "true" } else { "false" })
+                                .on(leptos::ev::click, {
+                                    let sa2 = sa.clone();
+                                    move |ev: web_sys::MouseEvent| {
                                         ev.stop_propagation();
-                                        sa();
-                                    })
-                                    .child(select_all_text_sv.get_value()),
-                            );
+                                        sa2();
+                                    }
+                                })
+                                .child(
+                                    leptos::html::div()
+                                        .attr("class", chkbox_box_class)
+                                        .child(
+                                            leptos::html::span()
+                                                .attr("class", chkbox_icon_class),
+                                        ),
+                                )
+                                .into_any()
+                        );
+                        header_children.push(
+                            leptos::html::button()
+                                .attr("type", "button")
+                                .attr("class", "rz-multiselect-selectall")
+                                .attr("disabled", disabled || read_only)
+                                .on(leptos::ev::click, move |ev: web_sys::MouseEvent| {
+                                    ev.stop_propagation();
+                                    sa();
+                                })
+                                .child(select_all_text_sv.get_value())
+                                .into_any()
+                        );
                     }
 
                     if allow_filtering {
-                        header = header.child(
+                        header_children.push(
                             leptos::html::div()
                                 .attr("class", "rz-multiselect-filter-container")
                                 .child(
@@ -574,12 +574,16 @@ pub fn RadzenDropDown(
                                         "class",
                                         "notranslate rz-multiselect-filter-icon rzi rzi-search",
                                     ),
-                                ),
+                                )
+                                .into_any()
                         );
                     }
 
-                    header.into_any()
-                });
+                    leptos::html::div()
+                        .attr("class", "rz-multiselect-header rz-helper-clearfix")
+                        .child(header_children.into_iter().collect_view())
+                        .into_any()
+             });
 
                 // ── Single-mode filter header ──────────────────────────────────
                 // Mirrors Blazor: `@if(!Multiple && AllowFiltering)`.

@@ -1,10 +1,7 @@
 //! RadzenDatePicker component — mirrors C# Radzen.Blazor.RadzenDatePicker<TValue>.
 //!
 //! # Value type
-//! In Blazor, TValue is generic (DateTime, DateTime?, DateOnly, DateOnly?, etc.).
-//! In Rust we use `Option<NaiveDate>` for date-only and `Option<NaiveDateTime>`
-//! when `show_time = true`. The public `value` prop is `RwSignal<Option<NaiveDate>>`;
-//! time components are stored in separate pending signals and combined internally.
+//! Uses `Option<NaiveDate>` for date-only. Enable `show_time` for time spinners.
 //!
 //! # CSS class (mirrors Blazor exactly)
 //! Root `<div>`: `rz-datepicker [rz-datepicker-inline] [rz-state-disabled] [caller-class]`
@@ -13,25 +10,24 @@
 //! Calendar: `rz-calendar`
 //! Calendar header: `rz-calendar-header`
 //! Prev/Next buttons: `rz-button rz-button-md rz-variant-text rz-button-icon-only rz-secondary rz-shade-default rz-calendar-prev|next`
-//! Table wrapper: `rz-calendar-view-container`
-//! Table: `rz-calendar-view rz-calendar-month-view`
-//! Other-month td: `rz-datepicker-other-month`
-//! Day span: `rz-state-default [rz-state-active] [rz-datepicker-today] [rz-state-disabled]`
-//! Time section: `rz-timepicker`
-//! Hour/minute/second: `rz-hour-picker`, `rz-minute-picker`, `rz-second-picker`
-//! AM/PM: `rz-ampm-picker`
-//! Footer: `rz-datepicker-footer`
-//! Week number cell: `rz-calendar-other-month rz-calendar-week-number`
-//! Clear button: `notranslate rz-dropdown-clear-icon rzi rzi-times`
+//! Month dropdown: `rz-calendar-month-dropdown` — wraps a `rz-dropdown` structure
+//! Year dropdown:  `rz-calendar-year-dropdown`  — wraps a `rz-dropdown` structure
+//!
+//! # Month / Year dropdowns
+//! Blazor uses `<RadzenDropDown class="rz-calendar-month-dropdown">` and
+//! `<RadzenDropDown class="rz-calendar-year-dropdown">` in the calendar header.
+//! We call our `RadzenDropDown` component directly, passing extra `class` via `base.attrs`.
+//! The `rz-calendar-month-dropdown` / `rz-calendar-year-dropdown` caller classes are
+//! appended last (as all Radzen components do), so the Radzen theme picks them up.
 //!
 //! # Visibility
 //! Mirrors `@if (Visible)` — element fully omitted when invisible.
 
 use crate::components::{
-    ClassList,
+    ClassList, DropDownItem, RadzenDropDown,
     base_component::{ComponentProps, use_radzen_base},
 };
-use chrono::{Datelike, Duration, NaiveDate, Timelike};
+use chrono::{Datelike, Duration, NaiveDate};
 use leptos::prelude::*;
 use std::sync::Arc;
 
@@ -132,11 +128,6 @@ fn parse_year_range(range: &str) -> (i32, i32) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// RadzenDatePicker component.
-///
-/// A calendar-based date picker. Set `show_time=true` to also display a time
-/// picker below the calendar. The public value type is `Option<NaiveDate>`;
-/// when time is needed the caller can use `on_change` with the date and read
-/// the hour/minute from separate signals.
 #[component]
 pub fn RadzenDatePicker(
     // ── Base ──────────────────────────────────────────────────────────────────
@@ -150,7 +141,7 @@ pub fn RadzenDatePicker(
 
     // ── Display ───────────────────────────────────────────────────────────────
     /// Date format string. Supported tokens: `yyyy`, `yy`, `MMMM`, `MMM`, `MM`, `M`, `dd`, `d`.
-    /// Default: `"M/d/yyyy"`. Mirrors Blazor `DateFormat`.
+    /// Default: `"M/d/yyyy"`.
     #[prop(default = "M/d/yyyy".to_string(), into)]
     date_format: String,
 
@@ -171,7 +162,7 @@ pub fn RadzenDatePicker(
     #[prop(default = false)]
     inline: bool,
 
-    /// Show the day grid. Default: `true`. Set `false` for month/year-only pickers.
+    /// Show the day grid. Default: `true`.
     #[prop(default = true)]
     show_days: bool,
 
@@ -188,7 +179,7 @@ pub fn RadzenDatePicker(
     #[prop(default = false)]
     show_time: bool,
 
-    /// Show only the time picker, hide the calendar entirely. Default: `false`.
+    /// Show only the time picker. Default: `false`.
     #[prop(default = false)]
     time_only: bool,
 
@@ -305,12 +296,10 @@ pub fn RadzenDatePicker(
     tab_index: i32,
 
     /// Extra HTML attributes spread onto the `<input>` element.
-    /// Mirrors Blazor's `InputAttributes` parameter.
     #[prop(default = None)]
     input_attributes: Option<std::collections::HashMap<String, String>>,
 
     /// Extra CSS class(es) appended to the trigger calendar button.
-    /// Mirrors Blazor's `ButtonClass` parameter.
     #[prop(default = String::new(), into)]
     button_class: String,
 
@@ -347,11 +336,6 @@ pub fn RadzenDatePicker(
     let pending_minute = RwSignal::new(0u32);
     let pending_second = RwSignal::new(0u32);
 
-    // ── Keyboard-focused day inside the calendar grid ─────────────────────────
-    // None = no keyboard focus yet. Arrow keys move this; Enter/Space selects it.
-    // Mirrors Blazor's OnCalendarKeyPress / shouldFocusDay mechanism.
-    let focused_day: RwSignal<Option<NaiveDate>> = RwSignal::new(None);
-
     // ── Open state ────────────────────────────────────────────────────────────
     let open = RwSignal::new(inline);
 
@@ -370,12 +354,12 @@ pub fn RadzenDatePicker(
         if read_only   { " rz-readonly"       } else { "" },
     );
     let trigger_button_class = {
-        let base = format!(
+        let base_cls = format!(
             "rz-datepicker-trigger{} rz-button rz-button-icon-only{}",
             if show_input { " rz-datepicker-field-button" } else { "" },
             if disabled   { " rz-state-disabled"          } else { "" },
         );
-        if button_class.is_empty() { base } else { format!("{} {}", base, button_class) }
+        if button_class.is_empty() { base_cls } else { format!("{} {}", base_cls, button_class) }
     };
 
     let style     = base.style.clone().unwrap_or_default();
@@ -400,7 +384,6 @@ pub fn RadzenDatePicker(
     };
 
     // ── on_change stored so FnMut closures can clone it ───────────────────────
-    // StoredValue + Arc avoids the FnOnce problem: every closure clones the Arc.
     let on_change_sv: StoredValue<Option<Arc<dyn Fn(Option<NaiveDate>) + Send + Sync>>> =
         StoredValue::new(on_change);
 
@@ -468,7 +451,6 @@ pub fn RadzenDatePicker(
         multi_signal.set(Vec::new());
     };
 
-    // commit_ok is stored so popup_child (FnMut) can clone it on each invocation.
     let commit_ok_sv = StoredValue::new(commit.clone());
 
     // ── Base events ───────────────────────────────────────────────────────────
@@ -478,9 +460,14 @@ pub fn RadzenDatePicker(
 
     let day_names = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-    // ── Year / month lists ────────────────────────────────────────────────────
-    let years: Vec<i32> = (year_from..=year_to).collect();
-    let months_list: Vec<(u32, &'static str)> = (1u32..=12).map(|m| (m, month_abbr(m))).collect();
+    // ── Year / month item lists for the dropdowns ─────────────────────────────
+    // Built as DropDownItem vecs — used by RadzenDropDown inside the popup.
+    let month_items: Vec<DropDownItem> = (1u32..=12)
+        .map(|m| DropDownItem::new(m.to_string(), month_name_full(m)))
+        .collect();
+    let year_items: Vec<DropDownItem> = (year_from..=year_to)
+        .map(|y| DropDownItem::new(y.to_string(), y.to_string()))
+        .collect();
 
     // ── has_value helper ──────────────────────────────────────────────────────
     let has_value = move || -> bool {
@@ -488,7 +475,7 @@ pub fn RadzenDatePicker(
         else { value_signal.get().is_some() }
     };
 
-    // ── Input section (static — not reactive) ────────────────────────────────
+    // ── Input section (static) ────────────────────────────────────────────────
     let input_section: AnyView = if inline {
         ().into_any()
     } else {
@@ -501,7 +488,7 @@ pub fn RadzenDatePicker(
         let parse_imm           = parse_and_commit.clone();
         let toggle_for_inp      = toggle_open;
 
-        // InputAttributes spread — applied imperatively via NodeRef after mount.
+        // InputAttributes spread.
         let extra_input_attrs: Vec<(String, String)> = input_attributes
             .as_ref()
             .map(|a| a.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
@@ -589,15 +576,26 @@ pub fn RadzenDatePicker(
             .into_any()
     };
 
-    // ── Popup / inline calendar — FnMut closure ───────────────────────────────
-    // All captures are either Copy (RwSignal, bool, i32, u32) or StoredValue / Arc.
-    let commit_popup        = commit.clone();
-    let date_render_sv      = StoredValue::new(date_render);
-    let footer_sv           = StoredValue::new(footer_template);
-    let hour_format_sv      = StoredValue::new(hour_format.clone());
-    let cal_week_title_sv   = StoredValue::new(calendar_week_title.clone());
+    // ── Month/year dropdown signals ───────────────────────────────────────────
+    // These signals bridge the RadzenDropDown callbacks back to view_month / view_year.
+    // We create RwSignal<String> versions that mirror the current view state so the
+    // dropdown shows the correct selected item reactively.
+    let month_value_str = RwSignal::new(view_month.get_untracked().to_string());
+    let year_value_str  = RwSignal::new(view_year.get_untracked().to_string());
 
-    // on_change for the multiple-mode day click (stored separately).
+    // Keep month_value_str / year_value_str in sync when view changes.
+    Effect::new(move |_| { month_value_str.set(view_month.get().to_string()); });
+    Effect::new(move |_| { year_value_str.set(view_year.get().to_string()); });
+
+    // ── Popup / inline calendar — FnMut closure ───────────────────────────────
+    let commit_popup      = commit.clone();
+    let date_render_sv    = StoredValue::new(date_render);
+    let footer_sv         = StoredValue::new(footer_template);
+    let hour_format_sv    = StoredValue::new(hour_format.clone());
+    let cal_week_title_sv = StoredValue::new(calendar_week_title.clone());
+    let month_items_sv    = StoredValue::new(month_items);
+    let year_items_sv     = StoredValue::new(year_items);
+
     let on_change_multi_sv: StoredValue<Option<Arc<dyn Fn(Option<NaiveDate>) + Send + Sync>>> =
         StoredValue::new(on_change_sv.get_value());
 
@@ -640,44 +638,55 @@ pub fn RadzenDatePicker(
             header_cells.push(view! { <th scope="col"><span>{name}</span></th> }.into_any());
         }
 
-        // Month / year dropdowns.
-        let month_opts: Vec<AnyView> = months_list.iter().map(|(v, label)| {
-            let v = *v;
-            leptos::html::option()
-                .attr("value", v.to_string())
-                .attr("selected", v == month)
-                .child(*label)
-                .into_any()
-        }).collect();
-        let year_opts: Vec<AnyView> = years.iter().map(|&y| {
-            leptos::html::option()
-                .attr("value", y.to_string())
-                .attr("selected", y == year)
-                .child(y.to_string())
-                .into_any()
-        }).collect();
+        // ── Month dropdown ────────────────────────────────────────────────────
+        // Mirrors Blazor: <RadzenDropDown class="rz-calendar-month-dropdown" …>
+        // We pass the extra class via base.attrs so it gets appended last — the same
+        // mechanism all Radzen components use for caller class.
+        let mut month_base = ComponentProps::default();
+        {
+            let mut attrs = std::collections::HashMap::new();
+            attrs.insert("class".to_string(), "rz-calendar-month-dropdown".to_string());
+            month_base.attrs = Some(attrs);
+        }
 
-        let month_select = leptos::html::select()
-            .attr("class", "rz-calendar-month-dropdown rz-dropdown-label rz-inputtext")
-            .attr("disabled", disabled)
-            .on(leptos::ev::change, move |ev: web_sys::Event| {
-                use web_sys::wasm_bindgen::JsCast;
-                if let Some(sel) = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlSelectElement>().ok()) {
-                    if let Ok(v) = sel.value().parse::<u32>() { view_month.set(v); }
-                }
-            })
-            .child(month_opts);
+        let month_dd = view! {
+            <RadzenDropDown
+                base=month_base
+                value=month_value_str
+                data=month_items_sv.get_value()
+                disabled=disabled
+                tab_index=tab_index
+                on_change=Some(Arc::new(move |v: String| {
+                    if let Ok(m) = v.parse::<u32>() {
+                        view_month.set(m);
+                    }
+                }))
+            />
+        }.into_any();
 
-        let year_select = leptos::html::select()
-            .attr("class", "rz-calendar-year-dropdown rz-dropdown-label rz-inputtext")
-            .attr("disabled", disabled)
-            .on(leptos::ev::change, move |ev: web_sys::Event| {
-                use web_sys::wasm_bindgen::JsCast;
-                if let Some(sel) = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlSelectElement>().ok()) {
-                    if let Ok(v) = sel.value().parse::<i32>() { view_year.set(v); }
-                }
-            })
-            .child(year_opts);
+        // ── Year dropdown ─────────────────────────────────────────────────────
+        // Mirrors Blazor: <RadzenDropDown class="rz-calendar-year-dropdown" …>
+        let mut year_base = ComponentProps::default();
+        {
+            let mut attrs = std::collections::HashMap::new();
+            attrs.insert("class".to_string(), "rz-calendar-year-dropdown".to_string());
+            year_base.attrs = Some(attrs);
+        }
+
+        let year_dd = view! {
+            <RadzenDropDown
+                base=year_base
+                value=year_value_str
+                data=year_items_sv.get_value()
+                disabled=disabled
+                tab_index=tab_index
+                on_change=Some(Arc::new(move |v: String| {
+                    if let Ok(y) = v.parse::<i32>() {
+                        view_year.set(y);
+                    }
+                }))
+            />
+        }.into_any();
 
         // Calendar rows.
         let rows: Vec<AnyView> = weeks.into_iter().map(|week| {
@@ -731,10 +740,7 @@ pub fn RadzenDatePicker(
                 let day_num = day.day().to_string();
                 let tab = if is_day_disabled || !is_cur_month { "-1" } else { "0" };
 
-                // on_change_multi_sv cloned for this cell's closure.
                 let on_change_cell = on_change_multi_sv.get_value();
-
-                // commit_cell is Arc — clone so both click and keydown can own a copy.
                 let commit_cell_click = commit_cell.clone();
                 let commit_cell_key   = commit_cell;
 
@@ -801,172 +807,139 @@ pub fn RadzenDatePicker(
                 else { h }
             };
 
-            // Hour spinner.
             let hour_max = if is12 { 12u32 } else { 23 };
             let hour_min = if is12 { 1u32 }  else { 0 };
             let pad_h    = pad_hours;
 
             let hour_el = leptos::html::div()
                 .attr("class", "rz-hour-picker")
-                .child(
-                    leptos::html::button()
-                        .attr("type", "button")
-                        .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
-                        .attr("tabindex", "-1")
-                        .attr("disabled", disabled)
-                        .on(leptos::ev::click, move |_| {
-                            if disabled { return; }
-                            let h = pending_hour.get_untracked();
-                            let display = if is12 { if h == 0 { 12 } else if h > 12 { h - 12 } else { h } } else { h };
-                            let next_display = if display >= hour_max { hour_min } else { display + hours_step };
-                            let next_raw = if is12 {
-                                if next_display == 12 { if h < 12 { 0 } else { 12 } }
-                                else if h < 12 { next_display } else { next_display + 12 }
-                            } else { next_display };
-                            pending_hour.set(next_raw % 24);
-                        })
-                        .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up"))
-                )
+                .child(leptos::html::button()
+                    .attr("type", "button")
+                    .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
+                    .attr("tabindex", "-1").attr("disabled", disabled)
+                    .on(leptos::ev::click, move |_| {
+                        if disabled { return; }
+                        let h = pending_hour.get_untracked();
+                        let display = if is12 { if h == 0 { 12 } else if h > 12 { h - 12 } else { h } } else { h };
+                        let next_display = if display >= hour_max { hour_min } else { display + hours_step };
+                        let next_raw = if is12 {
+                            if next_display == 12 { if h < 12 { 0 } else { 12 } }
+                            else if h < 12 { next_display } else { next_display + 12 }
+                        } else { next_display };
+                        pending_hour.set(next_raw % 24);
+                    })
+                    .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up")))
                 .child(move || {
                     let v = display_hour();
                     let s = if pad_h { format!("{:02}", v) } else { format!("{}", v) };
                     leptos::html::span().attr("class", "rz-time-value").child(s)
                 })
-                .child(
-                    leptos::html::button()
-                        .attr("type", "button")
-                        .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
-                        .attr("tabindex", "-1")
-                        .attr("disabled", disabled)
-                        .on(leptos::ev::click, move |_| {
-                            if disabled { return; }
-                            let h = pending_hour.get_untracked();
-                            let display = if is12 { if h == 0 { 12 } else if h > 12 { h - 12 } else { h } } else { h };
-                            let next_display = if display <= hour_min { hour_max } else { display - hours_step };
-                            let next_raw = if is12 {
-                                if next_display == 12 { if h < 12 { 0 } else { 12 } }
-                                else if h < 12 { next_display } else { next_display + 12 }
-                            } else { next_display };
-                            pending_hour.set(next_raw % 24);
-                        })
-                        .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down"))
-                );
+                .child(leptos::html::button()
+                    .attr("type", "button")
+                    .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
+                    .attr("tabindex", "-1").attr("disabled", disabled)
+                    .on(leptos::ev::click, move |_| {
+                        if disabled { return; }
+                        let h = pending_hour.get_untracked();
+                        let display = if is12 { if h == 0 { 12 } else if h > 12 { h - 12 } else { h } } else { h };
+                        let next_display = if display <= hour_min { hour_max } else { display - hours_step };
+                        let next_raw = if is12 {
+                            if next_display == 12 { if h < 12 { 0 } else { 12 } }
+                            else if h < 12 { next_display } else { next_display + 12 }
+                        } else { next_display };
+                        pending_hour.set(next_raw % 24);
+                    })
+                    .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down")));
 
-            // Minute spinner.
             let pad_m = pad_minutes;
             let minute_el = leptos::html::div()
                 .attr("class", "rz-minute-picker")
-                .child(
-                    leptos::html::button()
-                        .attr("type", "button")
-                        .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
-                        .attr("tabindex", "-1")
-                        .attr("disabled", disabled)
-                        .on(leptos::ev::click, move |_| {
-                            if disabled { return; }
-                            let m = pending_minute.get_untracked();
-                            pending_minute.set((m + minutes_step) % 60);
-                        })
-                        .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up"))
-                )
+                .child(leptos::html::button()
+                    .attr("type", "button")
+                    .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
+                    .attr("tabindex", "-1").attr("disabled", disabled)
+                    .on(leptos::ev::click, move |_| {
+                        if disabled { return; }
+                        let m = pending_minute.get_untracked();
+                        pending_minute.set((m + minutes_step) % 60);
+                    })
+                    .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up")))
                 .child(move || {
                     let v = pending_minute.get();
                     let s = if pad_m { format!("{:02}", v) } else { format!("{}", v) };
                     leptos::html::span().attr("class", "rz-time-value").child(s)
                 })
-                .child(
-                    leptos::html::button()
-                        .attr("type", "button")
-                        .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
-                        .attr("tabindex", "-1")
-                        .attr("disabled", disabled)
-                        .on(leptos::ev::click, move |_| {
-                            if disabled { return; }
-                            let m = pending_minute.get_untracked();
-                            pending_minute.set(if m < minutes_step { 60 - minutes_step } else { m - minutes_step });
-                        })
-                        .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down"))
-                );
+                .child(leptos::html::button()
+                    .attr("type", "button")
+                    .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
+                    .attr("tabindex", "-1").attr("disabled", disabled)
+                    .on(leptos::ev::click, move |_| {
+                        if disabled { return; }
+                        let m = pending_minute.get_untracked();
+                        pending_minute.set(if m < minutes_step { 60 - minutes_step } else { m - minutes_step });
+                    })
+                    .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down")));
 
-            // Second spinner.
             let pad_s = pad_seconds;
             let second_el: AnyView = if show_seconds {
                 leptos::html::div()
                     .attr("class", "rz-second-picker")
-                    .child(
-                        leptos::html::button()
-                            .attr("type", "button")
-                            .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
-                            .attr("tabindex", "-1")
-                            .attr("disabled", disabled)
-                            .on(leptos::ev::click, move |_| {
-                                if disabled { return; }
-                                let s = pending_second.get_untracked();
-                                pending_second.set((s + seconds_step) % 60);
-                            })
-                            .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up"))
-                    )
+                    .child(leptos::html::button()
+                        .attr("type", "button")
+                        .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
+                        .attr("tabindex", "-1").attr("disabled", disabled)
+                        .on(leptos::ev::click, move |_| {
+                            if disabled { return; }
+                            let s = pending_second.get_untracked();
+                            pending_second.set((s + seconds_step) % 60);
+                        })
+                        .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up")))
                     .child(move || {
                         let v = pending_second.get();
                         let s = if pad_s { format!("{:02}", v) } else { format!("{}", v) };
                         leptos::html::span().attr("class", "rz-time-value").child(s)
                     })
-                    .child(
-                        leptos::html::button()
-                            .attr("type", "button")
-                            .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
-                            .attr("tabindex", "-1")
-                            .attr("disabled", disabled)
-                            .on(leptos::ev::click, move |_| {
-                                if disabled { return; }
-                                let s = pending_second.get_untracked();
-                                pending_second.set(if s < seconds_step { 60 - seconds_step } else { s - seconds_step });
-                            })
-                            .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down"))
-                    )
+                    .child(leptos::html::button()
+                        .attr("type", "button")
+                        .attr("class", "rz-button rz-button-icon-only rz-variant-text rz-secondary")
+                        .attr("tabindex", "-1").attr("disabled", disabled)
+                        .on(leptos::ev::click, move |_| {
+                            if disabled { return; }
+                            let s = pending_second.get_untracked();
+                            pending_second.set(if s < seconds_step { 60 - seconds_step } else { s - seconds_step });
+                        })
+                        .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down")))
                     .into_any()
-            } else {
-                ().into_any()
-            };
+            } else { ().into_any() };
 
-            // AM/PM picker.
             let ampm_el: AnyView = if is12 {
                 leptos::html::div()
                     .attr("class", "rz-ampm-picker")
-                    .child(
-                        leptos::html::button()
-                            .attr("type", "button")
-                            .attr("tabindex", if disabled { "-1" } else { "0" })
-                            .attr("disabled", disabled)
-                            .on(leptos::ev::click, move |_: web_sys::MouseEvent| {
-                                if disabled { return; }
-                                let h = pending_hour.get_untracked();
-                                pending_hour.set((h + 12) % 24);
-                            })
-                            .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up"))
-                    )
+                    .child(leptos::html::button()
+                        .attr("type", "button").attr("tabindex", if disabled { "-1" } else { "0" })
+                        .attr("disabled", disabled)
+                        .on(leptos::ev::click, move |_: web_sys::MouseEvent| {
+                            if disabled { return; }
+                            let h = pending_hour.get_untracked();
+                            pending_hour.set((h + 12) % 24);
+                        })
+                        .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-up")))
                     .child(move || {
                         let h = pending_hour.get();
                         leptos::html::span().child(if h < 12 { "AM" } else { "PM" })
                     })
-                    .child(
-                        leptos::html::button()
-                            .attr("type", "button")
-                            .attr("tabindex", if disabled { "-1" } else { "0" })
-                            .attr("disabled", disabled)
-                            .on(leptos::ev::click, move |_: web_sys::MouseEvent| {
-                                if disabled { return; }
-                                let h = pending_hour.get_untracked();
-                                pending_hour.set((h + 12) % 24);
-                            })
-                            .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down"))
-                    )
+                    .child(leptos::html::button()
+                        .attr("type", "button").attr("tabindex", if disabled { "-1" } else { "0" })
+                        .attr("disabled", disabled)
+                        .on(leptos::ev::click, move |_: web_sys::MouseEvent| {
+                            if disabled { return; }
+                            let h = pending_hour.get_untracked();
+                            pending_hour.set((h + 12) % 24);
+                        })
+                        .child(leptos::html::span().attr("class", "notranslate rzi rzi-chevron-down")))
                     .into_any()
-            } else {
-                ().into_any()
-            };
+            } else { ().into_any() };
 
-            // OK button — commit_ok_sv cloned each invocation so popup_child stays FnMut.
             let ok_el: AnyView = if show_time_ok_button {
                 let commit_ok = commit_ok_sv.get_value();
                 leptos::html::button()
@@ -979,9 +952,7 @@ pub fn RadzenDatePicker(
                     })
                     .child(leptos::html::span().attr("class", "rz-button-text").child("Ok"))
                     .into_any()
-            } else {
-                ().into_any()
-            };
+            } else { ().into_any() };
 
             let sep = || leptos::html::div()
                 .attr("class", "rz-separator")
@@ -990,14 +961,8 @@ pub fn RadzenDatePicker(
 
             let mut time_children: Vec<AnyView> = Vec::new();
             if show_hour    { time_children.push(hour_el.into_any()); }
-            if show_minutes {
-                if show_hour { time_children.push(sep()); }
-                time_children.push(minute_el.into_any());
-            }
-            if show_seconds {
-                if show_minutes { time_children.push(sep()); }
-                time_children.push(second_el);
-            }
+            if show_minutes { if show_hour { time_children.push(sep()); } time_children.push(minute_el.into_any()); }
+            if show_seconds { if show_minutes { time_children.push(sep()); } time_children.push(second_el); }
             if is12 { time_children.push(ampm_el); }
             if show_time_ok_button { time_children.push(ok_el); }
 
@@ -1005,9 +970,7 @@ pub fn RadzenDatePicker(
                 .attr("class", "rz-timepicker")
                 .child(time_children.into_iter().collect_view())
                 .into_any()
-        } else {
-            ().into_any()
-        };
+        } else { ().into_any() };
 
         // ── Assemble calendar ──────────────────────────────────────────────────
         let calendar_section: AnyView = if !time_only {
@@ -1018,8 +981,7 @@ pub fn RadzenDatePicker(
                         .attr("class", "rz-calendar-header")
                         .child(
                             leptos::html::button()
-                                .attr("type", "button")
-                                .attr("tabindex", "-1")
+                                .attr("type", "button").attr("tabindex", "-1")
                                 .attr("aria-label", "Previous month")
                                 .attr("class", "rz-button rz-button-md rz-variant-text rz-button-icon-only rz-secondary rz-shade-default rz-calendar-prev")
                                 .attr("disabled", disabled)
@@ -1028,8 +990,7 @@ pub fn RadzenDatePicker(
                         )
                         .child(
                             leptos::html::button()
-                                .attr("type", "button")
-                                .attr("tabindex", "-1")
+                                .attr("type", "button").attr("tabindex", "-1")
                                 .attr("aria-label", "Next month")
                                 .attr("class", "rz-button rz-button-md rz-variant-text rz-button-icon-only rz-secondary rz-shade-default rz-calendar-next")
                                 .attr("disabled", disabled)
@@ -1039,8 +1000,8 @@ pub fn RadzenDatePicker(
                         .child(
                             leptos::html::div()
                                 .attr("class", "rz-calendar-title")
-                                .child(month_select)
-                                .child(year_select)
+                                .child(month_dd)
+                                .child(year_dd)
                         )
                 )
                 .child(if show_days {
@@ -1054,14 +1015,10 @@ pub fn RadzenDatePicker(
                                 .child(leptos::html::tbody().child(rows))
                         )
                         .into_any()
-                } else {
-                    ().into_any()
-                })
+                } else { ().into_any() })
                 .child(footer_child)
                 .into_any()
-        } else {
-            ().into_any()
-        };
+        } else { ().into_any() };
 
         leptos::html::div()
             .attr("class", container_class)

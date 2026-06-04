@@ -225,7 +225,7 @@ pub fn RadzenPassword(
         }
     };
 
-        // ── Render ────────────────────────────────────────────────────────────────
+    // ── Render ────────────────────────────────────────────────────────────────
     let node_ref = NodeRef::<leptos::html::Input>::new();
 
     if !extra_attrs.is_empty() {

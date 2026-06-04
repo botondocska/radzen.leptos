@@ -209,29 +209,28 @@ pub fn RadzenDropDown(
     // Shared between the hidden-input .prop() and the visible label .child().
     // Wrapping in Arc<Fn> lets both closures clone it instead of moving it.
     let data_sv = StoredValue::new(data.clone());
-    let selected_label: Arc<dyn Fn() -> String + Send + Sync> =
-        Arc::new(move || -> String {
-            let items = data_sv.get_value();
-            if multiple {
-                let selected = value_multiple.map(|s| s.get()).unwrap_or_default();
-                if selected.is_empty() {
-                    return String::new();
-                }
-                selected
-                    .iter()
-                    .filter_map(|v| items.iter().find(|i| &i.value == v))
-                    .map(|i| i.label.clone())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            } else {
-                let val = value.map(|s| s.get()).unwrap_or_default();
-                items
-                    .iter()
-                    .find(|i| i.value == val)
-                    .map(|i| i.label.clone())
-                    .unwrap_or_default()
+    let selected_label: Arc<dyn Fn() -> String + Send + Sync> = Arc::new(move || -> String {
+        let items = data_sv.get_value();
+        if multiple {
+            let selected = value_multiple.map(|s| s.get()).unwrap_or_default();
+            if selected.is_empty() {
+                return String::new();
             }
-        });
+            selected
+                .iter()
+                .filter_map(|v| items.iter().find(|i| &i.value == v))
+                .map(|i| i.label.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        } else {
+            let val = value.map(|s| s.get()).unwrap_or_default();
+            items
+                .iter()
+                .find(|i| i.value == val)
+                .map(|i| i.label.clone())
+                .unwrap_or_default()
+        }
+    });
 
     // ── is_selected ───────────────────────────────────────────────────────────
     // Pure read; signals are Copy — no move issues.
@@ -248,7 +247,7 @@ pub fn RadzenDropDown(
     // ── select_item ───────────────────────────────────────────────────────────
     // Arc so the FnMut panel closure can clone it per item without moving it out.
     let on_change_cb = Arc::new(on_change);
-    let on_change_cb2 = on_change_cb.clone(); 
+    let on_change_cb2 = on_change_cb.clone();
     let select_item = Arc::new(move |item_value: String| {
         if disabled || read_only {
             return;
@@ -282,8 +281,11 @@ pub fn RadzenDropDown(
     let data_sv2 = StoredValue::new(data.clone());
     let select_all = Arc::new(move || {
         if let Some(multi_sig) = value_multiple {
-            let all_vals: Vec<String> =
-                data_sv2.get_value().iter().map(|i| i.value.clone()).collect();
+            let all_vals: Vec<String> = data_sv2
+                .get_value()
+                .iter()
+                .map(|i| i.value.clone())
+                .collect();
             let currently_all = multi_sig.get().len() == all_vals.len();
             if currently_all {
                 multi_sig.set(vec![]);
@@ -321,19 +323,17 @@ pub fn RadzenDropDown(
     };
 
     // Keyboard navigation.
-    let on_keydown = move |ev: web_sys::KeyboardEvent| {
-        match ev.key().as_str() {
-            "Escape" => {
-                open.set(false);
-                filter_text.set(String::new());
-            }
-            "Enter" | " " => {
-                if !open.get_untracked() {
-                    open.set(true);
-                }
-            }
-            _ => {}
+    let on_keydown = move |ev: web_sys::KeyboardEvent| match ev.key().as_str() {
+        "Escape" => {
+            open.set(false);
+            filter_text.set(String::new());
         }
+        "Enter" | " " => {
+            if !open.get_untracked() {
+                open.set(true);
+            }
+        }
+        _ => {}
     };
 
     // Base mouse event handlers.

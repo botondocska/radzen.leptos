@@ -5,7 +5,7 @@
 /// [`ClassList::add_button_size`].
 ///
 /// Mirrors `Radzen.ButtonSize` in `Radzen.Blazor/Common.cs`.
-#[derive(Clone, PartialEq, Default, Debug)]
+#[derive(Clone, Copy, PartialEq, Default, Debug)]
 pub enum ButtonSize {
     /// The smallest button size.
     ExtraSmall,

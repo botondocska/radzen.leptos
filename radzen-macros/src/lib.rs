@@ -3,8 +3,14 @@ use quote::quote;
 use syn::{FnArg, ItemFn, Pat, Token, parse_macro_input, punctuated::Punctuated};
 
 const BASE_PROP_NAMES: &[&str] = &[
-    "style", "visible", "id", "attrs", "locale",
-    "on_mouse_enter", "on_mouse_leave", "on_context_menu",
+    "style",
+    "visible",
+    "id",
+    "attrs",
+    "locale",
+    "on_mouse_enter",
+    "on_mouse_leave",
+    "on_context_menu",
 ];
 
 #[proc_macro_attribute]

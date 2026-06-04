@@ -78,16 +78,24 @@ fn last_day_of_month(year: i32, month: u32) -> NaiveDate {
     } else {
         (year, month + 1)
     };
-    NaiveDate::from_ymd_opt(next_year, next_month, 1)
-        .expect("valid date")
-        - Duration::days(1)
+    NaiveDate::from_ymd_opt(next_year, next_month, 1).expect("valid date") - Duration::days(1)
 }
 
 /// Format a date as `"Month YYYY"` e.g. `"January 2025"`.
 fn format_month_year(year: i32, month: u32) -> String {
     let month_name = [
-        "January", "February", "March", "April", "May", "June", "July", "August", "September",
-        "October", "November", "December",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
     ][(month - 1) as usize];
     format!("{} {}", month_name, year)
 }

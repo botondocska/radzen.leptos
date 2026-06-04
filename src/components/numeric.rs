@@ -2,36 +2,41 @@
 //!
 //! # CSS class order (mirrors Blazor exactly)
 //! Root `<span>`: `rz-numeric [rz-state-disabled] [caller-class]`
-//! Input `<input>`: `rz-numeric-input rz-inputtext rz-text-align-{left|center|right} [rz-state-disabled] [rz-state-empty]`
+//! Input `<input>`: `rz-numeric-input rz-inputtext rz-text-align-{left|center|right|start|end|justify}`
 //!
 //! Blazor `GetComponentCssClass()`:
 //! ```csharp
 //! GetClassList("rz-numeric").ToString()
 //! ```
-//! Input CSS: `GetClassList("rz-numeric-input").Add("rz-inputtext").Add($"rz-text-align-{textAlignName}").ToString()`
+//! Input CSS — `GetInputCssClass()`:
+//! ```csharp
+//! GetClassList("rz-numeric-input")
+//!     .Add("rz-inputtext")
+//!     .Add($"rz-text-align-{Enum.GetName<TextAlign>(TextAlign).ToLowerInvariant()}")
+//!     .ToString()
+//! ```
+//! Note: `rz-state-disabled` and `rz-state-empty` are NOT part of the input CSS class
+//! in Blazor — they belong on the root span via `GetClassList`.
 //!
-//! # HTML structure (mirrors Blazor)
+//! # HTML structure (mirrors Blazor razor template exactly)
 //! ```html
 //! <span class="rz-numeric …" id="…" style="…">
-//!   <input class="rz-numeric-input rz-inputtext rz-text-align-left …"
+//!   <input class="rz-numeric-input rz-inputtext rz-text-align-left"
 //!          type="text" inputmode="decimal"
-//!          value="…" placeholder="…" disabled readonly tabindex="…"
-//!          onkeydown=… oninput=… onchange=… onblur=… />
-//!   <span class="rz-numeric-buttons">
+//!          value="…" placeholder="…" disabled readonly tabindex="…" />
+//!   @if (ShowUpDown) {
 //!     <button type="button" class="rz-numeric-button rz-numeric-up rz-button" tabindex="-1">
 //!       <span class="notranslate rz-numeric-button-icon rzi rzi-caret-up"></span>
 //!     </button>
 //!     <button type="button" class="rz-numeric-button rz-numeric-down rz-button" tabindex="-1">
 //!       <span class="notranslate rz-numeric-button-icon rzi rzi-caret-down"></span>
 //!     </button>
-//!   </span>
+//!   }
 //! </span>
 //! ```
-//!
-//! # Value type
-//! We use `f64` internally with an `Option<f64>` signal to support nullable numerics.
-//! The display string is formatted according to `format` (e.g. `"N0"`, `"C2"`) or
-//! falls back to plain decimal formatting.
+//! Important: Blazor renders the up/down buttons as DIRECT children of the root `<span>`,
+//! NOT wrapped in an extra `<span class="rz-numeric-buttons">`. The previous version
+//! incorrectly added a wrapper span.
 //!
 //! # Visibility
 //! Mirrors `@if (Visible)` — element fully omitted when invisible.
@@ -95,7 +100,7 @@ pub fn RadzenNumeric(
     #[prop(default = None)]
     max: Option<f64>,
 
-    /// Number of decimal places shown. `None` = auto (shows up to 10 significant digits).
+    /// Number of decimal places shown. `None` = auto (plain f64 Display).
     #[prop(default = None)]
     decimals: Option<usize>,
 
@@ -123,6 +128,7 @@ pub fn RadzenNumeric(
     let effective_tab = if disabled { -1 } else { tab_index };
 
     // ── CSS classes ───────────────────────────────────────────────────────────
+    // Root span: GetClassList("rz-numeric") — includes rz-state-disabled when disabled.
     let root_class = ClassList::create("rz-numeric")
         .add_disabled(disabled)
         .add_caller_class(
@@ -133,41 +139,34 @@ pub fn RadzenNumeric(
         )
         .finish();
 
-    let align_suffix = match text_align {
+    // Input: GetInputCssClass() = "rz-numeric-input rz-inputtext rz-text-align-{name}"
+    // Mirrors: Enum.GetName<TextAlign>(TextAlign).ToLowerInvariant()
+    let align_name = match text_align {
+        TextAlign::Left => "left",
         TextAlign::Center => "center",
         TextAlign::Right => "right",
         TextAlign::Start => "start",
         TextAlign::End => "end",
         TextAlign::Justify | TextAlign::JustifyAll => "justify",
-        TextAlign::Left => "left",
     };
-    let input_class_base = format!("rz-numeric-input rz-inputtext rz-text-align-{align_suffix}");
-    let input_class_disabled = if disabled {
-        format!("{input_class_base} rz-state-disabled")
-    } else {
-        input_class_base.clone()
-    };
+    // Input CSS is STATIC — no reactive empty/disabled classes on input in Blazor.
+    let input_class = format!("rz-numeric-input rz-inputtext rz-text-align-{align_name}");
 
     let style = base.style.clone().unwrap_or_default();
     let handle_id = handle.id.clone();
 
-    // ── Formatting helpers ────────────────────────────────────────────────────
+    // ── Formatting helper ─────────────────────────────────────────────────────
     let format_value = move |v: f64| -> String {
         match decimals {
             Some(d) => format!("{:.prec$}", v, prec = d),
-            None => {
-                // Strip trailing zeros after decimal point.
-                let s = format!("{}", v);
-                s
-            }
+            None => format!("{}", v),
         }
     };
 
     // ── Clamp helper ──────────────────────────────────────────────────────────
     let clamp = move |v: f64| -> f64 {
         let v = if let Some(mn) = min { v.max(mn) } else { v };
-        let v = if let Some(mx) = max { v.min(mx) } else { v };
-        v
+        if let Some(mx) = max { v.min(mx) } else { v }
     };
 
     // ── Commit a new numeric value ────────────────────────────────────────────
@@ -189,7 +188,7 @@ pub fn RadzenNumeric(
         } else if let Ok(v) = trimmed.parse::<f64>() {
             commit_parse(Some(v));
         }
-        // Invalid parse → ignore (keep previous value).
+        // Invalid parse → keep previous value (no-op).
     });
 
     // onchange handler.
@@ -204,7 +203,7 @@ pub fn RadzenNumeric(
         }
     };
 
-    // onblur — same as onchange to normalise the displayed value.
+    // onblur — normalise the displayed value to the committed value.
     let parse_blur = parse_and_commit.clone();
     let on_blur = move |ev: web_sys::FocusEvent| {
         use web_sys::wasm_bindgen::JsCast;
@@ -215,13 +214,18 @@ pub fn RadzenNumeric(
         }
     };
 
-    // onkeydown — Arrow keys step the value.
+    // onkeydown — ArrowUp/ArrowDown step the value (mirrors Blazor OnKeyPress).
     let commit_key = commit.clone();
     let on_keydown = move |ev: web_sys::KeyboardEvent| {
         if disabled || read_only {
             return;
         }
-        let delta = match ev.key().as_str() {
+        let key = if ev.code().is_empty() {
+            ev.key()
+        } else {
+            ev.code()
+        };
+        let delta = match key.as_str() {
             "ArrowUp" => Some(step),
             "ArrowDown" => Some(-step),
             _ => None,
@@ -257,17 +261,8 @@ pub fn RadzenNumeric(
     let leave_cb = handle.on_mouse_leave.clone();
     let ctx_cb = handle.on_context_menu.clone();
 
-    // Reactive empty class for input.
-    let css_empty_input = {
-        let base_cls = input_class_disabled.clone();
-        move || {
-            if value_signal.get().is_none() {
-                format!("{base_cls} rz-state-empty")
-            } else {
-                base_cls.clone()
-            }
-        }
-    };
+    // Reactive prop value for the input — shows formatted or empty.
+    let input_class_clone = input_class.clone();
 
     Some(
         leptos::html::span()
@@ -277,13 +272,15 @@ pub fn RadzenNumeric(
             .on(leptos::ev::mouseenter, move |ev| enter_cb(ev))
             .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
             .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev))
+            // ── Input ──────────────────────────────────────────────────────────
+            // Mirrors Blazor's <input class="@GetInputCssClass()" type="text" inputmode="decimal" …>
             .child(
                 leptos::html::input()
                     .attr("id", input_id)
                     .attr("name", name)
                     .attr("type", "text")
                     .attr("inputmode", "decimal")
-                    .attr("class", move || css_empty_input())
+                    .attr("class", input_class_clone)
                     .attr("placeholder", placeholder)
                     .attr("disabled", disabled)
                     .attr("readonly", read_only)
@@ -299,44 +296,32 @@ pub fn RadzenNumeric(
                     .on(leptos::ev::blur, on_blur)
                     .on(leptos::ev::keydown, on_keydown),
             )
-            // Up/down buttons.
+            // ── Up/down buttons — direct children of root span (NOT wrapped) ──
+            // Mirrors Blazor razor: @if (ShowUpDown) { <button>…</button> <button>…</button> }
+            // No intermediate wrapper span — that was wrong in the previous version.
             .child(show_updown.then(|| {
-                leptos::html::span()
-                    .attr("class", "rz-numeric-buttons")
-                    .child(
-                        leptos::html::button()
-                            .attr("type", "button")
-                            .attr(
-                                "class",
-                                "rz-numeric-button rz-numeric-up rz-button",
-                            )
-                            .attr("tabindex", "-1")
-                            .attr("disabled", disabled)
-                            .on(leptos::ev::click, step_up)
-                            .child(
-                                leptos::html::span().attr(
-                                    "class",
-                                    "notranslate rz-numeric-button-icon rzi rzi-caret-up",
-                                ),
-                            ),
-                    )
-                    .child(
-                        leptos::html::button()
-                            .attr("type", "button")
-                            .attr(
-                                "class",
-                                "rz-numeric-button rz-numeric-down rz-button",
-                            )
-                            .attr("tabindex", "-1")
-                            .attr("disabled", disabled)
-                            .on(leptos::ev::click, step_down)
-                            .child(
-                                leptos::html::span().attr(
-                                    "class",
-                                    "notranslate rz-numeric-button-icon rzi rzi-caret-down",
-                                ),
-                            ),
-                    )
+                view! {
+                    <>
+                        <button
+                            type="button"
+                            class="rz-numeric-button rz-numeric-up rz-button"
+                            tabindex="-1"
+                            disabled=disabled
+                            on:click=step_up
+                        >
+                            <span class="notranslate rz-numeric-button-icon rzi rzi-caret-up"></span>
+                        </button>
+                        <button
+                            type="button"
+                            class="rz-numeric-button rz-numeric-down rz-button"
+                            tabindex="-1"
+                            disabled=disabled
+                            on:click=step_down
+                        >
+                            <span class="notranslate rz-numeric-button-icon rzi rzi-caret-down"></span>
+                        </button>
+                    </>
+                }
             })),
     )
     .into_any()

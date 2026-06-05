@@ -3,11 +3,12 @@ use leptos::prelude::*;
 use std::collections::HashMap;
 
 use crate::components::{
-    AlertStyle, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, DropDownItem, DropDownProps,
-    Orientation, RadzenAlert, RadzenBadge, RadzenButton, RadzenCard, RadzenCheckBox,
-    RadzenDatePicker, RadzenDropDown, RadzenIcon, RadzenLabel, RadzenLink, RadzenNumeric,
-    RadzenPassword, RadzenSelectBar, RadzenSelectBarItem, RadzenStack, RadzenText, RadzenTextArea,
-    RadzenTextBox, Shade, TextAlign, TextStyle, Variant,
+    AlertStyle, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, Density, DropDownItem,
+    DropDownProps, HorizontalAlign, Orientation, PagerEventArgs, RadzenAlert, RadzenBadge,
+    RadzenButton, RadzenCard, RadzenCheckBox, RadzenDatePicker, RadzenDropDown, RadzenIcon,
+    RadzenLabel, RadzenLink, RadzenNumeric, RadzenPager, RadzenPassword, RadzenSelectBar,
+    RadzenSelectBarItem, RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox, Shade, TextAlign,
+    TextStyle, Variant,
 };
 
 /// Default Home Page
@@ -857,6 +858,186 @@ pub fn Home() -> impl IntoView {
             />
         </div>
 
+        // ════════════════════════════════════════════════════════════════════════
+        // RadzenPager
+        // ════════════════════════════════════════════════════════════════════════
+
+        // ── Basic ─────────────────────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — Basic"</h2>
+        <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+            "250 items, 20 per page."
+        </p>
+        {
+            let skip = RwSignal::new(0usize);
+            view! {
+                <RadzenPager
+                    count=250
+                    page_size=20
+                    on_page_changed=Some(std::sync::Arc::new(move |args: PagerEventArgs| {
+                        skip.set(args.skip);
+                    }))
+                />
+                <RadzenText text_style=TextStyle::Body2>
+                    {move || format!("Skip: {}", skip.get())}
+                </RadzenText>
+            }
+        }
+
+        // ── Always visible (single page) ──────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — AlwaysVisible"</h2>
+        <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+            "Only 5 items but pager forced visible."
+        </p>
+        <RadzenPager count=5 page_size=20 always_visible=true />
+
+        // ── Paging summary ────────────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — Paging Summary"</h2>
+        <RadzenPager
+            count=500
+            page_size=25
+            page_numbers_count=5
+            show_paging_summary=true
+        />
+
+        // ── Custom summary format ─────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — Custom Summary Format"</h2>
+        <RadzenPager
+            count=300
+            page_size=10
+            show_paging_summary=true
+            paging_summary_format="{0} / {1} pages · {2} total".to_string()
+        />
+
+        // ── Page size selector ────────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — Page Size Selector"</h2>
+        {
+            let page_size = RwSignal::new(10usize);
+            view! {
+                <RadzenPager
+                    count=500
+                    page_size=10
+                    page_size_options=vec![10, 25, 50, 100]
+                    page_size_text="items per page".to_string()
+                    on_page_size_changed=Some(std::sync::Arc::new(move |ps| {
+                        page_size.set(ps);
+                    }))
+                    show_paging_summary=true
+                />
+                <RadzenText text_style=TextStyle::Body2>
+                    {move || format!("Page size: {}", page_size.get())}
+                </RadzenText>
+            }
+        }
+
+        // ── Compact density ───────────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — Compact Density"</h2>
+        <RadzenPager
+            count=200
+            page_size=20
+            density=Density::Compact
+            show_paging_summary=true
+        />
+
+        // ── HorizontalAlign variants ──────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — HorizontalAlign"</h2>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div>
+                <RadzenLabel text=Some("Left".to_string()) />
+                <RadzenPager count=100 page_size=10 horizontal_align=HorizontalAlign::Left />
+            </div>
+            <div>
+                <RadzenLabel text=Some("Center".to_string()) />
+                <RadzenPager count=100 page_size=10 horizontal_align=HorizontalAlign::Center />
+            </div>
+            <div>
+                <RadzenLabel text=Some("Right".to_string()) />
+                <RadzenPager count=100 page_size=10 horizontal_align=HorizontalAlign::Right />
+            </div>
+            <div>
+                <RadzenLabel text=Some("Justify (default)".to_string()) />
+                <RadzenPager count=100 page_size=10 horizontal_align=HorizontalAlign::Justify />
+            </div>
+        </div>
+
+        // ── Prev/Next labels ──────────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — Prev / Next Labels"</h2>
+        <RadzenPager
+            count=150
+            page_size=15
+            prev_page_label=Some("Prev".to_string())
+            next_page_label=Some("Next".to_string())
+        />
+
+        // ── Allow reload ──────────────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — Allow Reload"</h2>
+        <RadzenPager
+            count=200
+            page_size=20
+            allow_reload=true
+            on_reload=Some(std::sync::Arc::new(|| {
+                log::info!("Pager reload clicked");
+            }))
+        />
+
+        // ── Custom page numbers count ─────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — 10 Visible Page Buttons"</h2>
+        <RadzenPager count=1000 page_size=10 page_numbers_count=10 />
+
+        // ── Custom aria labels ────────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — Custom Accessibility Labels"</h2>
+        <RadzenPager
+            count=100
+            page_size=10
+            first_page_title="Jump to first".to_string()
+            first_page_aria_label="Go to first page".to_string()
+            last_page_title="Jump to last".to_string()
+            last_page_aria_label="Go to last page".to_string()
+            navigation_aria_label="Orders pagination".to_string()
+        />
+
+        // ── onChange callback ─────────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — onChange Callback"</h2>
+        <RadzenPager
+            count=300
+            page_size=30
+            show_paging_summary=true
+            on_page_changed=Some(std::sync::Arc::new(|args: PagerEventArgs| {
+                log::info!("Page changed — skip: {}, top: {}, page: {}", args.skip, args.top, args.page_index);
+            }))
+        />
+
+        // ── Full featured ─────────────────────────────────────────────────────
+        <h2 style="margin-top: 2rem;">"Pager — Full Featured"</h2>
+        {
+            let skip = RwSignal::new(0usize);
+            let page_size = RwSignal::new(10usize);
+            view! {
+                <RadzenPager
+                    count=500
+                    page_size=10
+                    page_numbers_count=5
+                    show_paging_summary=true
+                    always_visible=true
+                    allow_reload=true
+                    page_size_options=vec![10, 25, 50, 100]
+                    prev_page_label=Some("Prev".to_string())
+                    next_page_label=Some("Next".to_string())
+                    horizontal_align=HorizontalAlign::Justify
+                    on_page_changed=Some(std::sync::Arc::new(move |args: PagerEventArgs| {
+                        skip.set(args.skip);
+                    }))
+                    on_page_size_changed=Some(std::sync::Arc::new(move |ps| {
+                        page_size.set(ps);
+                    }))
+                    on_reload=Some(std::sync::Arc::new(|| {
+                        log::info!("Reloading data...");
+                    }))
+                />
+                <RadzenText text_style=TextStyle::Body2>
+                    {move || format!("Skip: {} · Page size: {}", skip.get(), page_size.get())}
+                </RadzenText>
+            }
+        }
         </div> // .container
         </ErrorBoundary>
     }

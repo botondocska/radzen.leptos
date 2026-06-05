@@ -13,10 +13,12 @@ pub mod button_type;
 pub mod card;
 pub mod check_box;
 pub mod date_picker;
+pub mod density;
 pub mod dropdown;
 pub mod dropdown_base;
 pub mod flex_wrap;
 pub mod grid;
+pub mod horizontal_align;
 pub mod icon;
 pub mod icon_style;
 pub mod image;
@@ -25,6 +27,8 @@ pub mod label;
 pub mod link;
 pub mod numeric;
 pub mod orientation;
+pub mod pager;
+pub mod pager_position;
 pub mod password;
 pub mod select_bar;
 pub mod shade;
@@ -55,13 +59,14 @@ pub use button_type::ButtonType;
 pub use card::RadzenCard;
 pub use check_box::RadzenCheckBox;
 pub use date_picker::RadzenDatePicker;
+pub use density::Density;
 pub use dropdown::RadzenDropDown;
-
 pub use dropdown_base::{
     DropDownItem, DropDownProps, DropdownBase, DropdownBaseOption, DropdownBaseProps,
     build_drop_down_root_class, use_drop_down_base, use_drop_down_base_flat,
 };
 pub use flex_wrap::FlexWrap;
+pub use horizontal_align::HorizontalAlign;
 pub use icon::RadzenIcon;
 pub use icon_style::IconStyle;
 pub use image::{ImageClickFuture, ImageClickHandler, RadzenImage};
@@ -70,6 +75,8 @@ pub use label::RadzenLabel;
 pub use link::{NavLinkMatch, RadzenLink};
 pub use numeric::RadzenNumeric;
 pub use orientation::Orientation;
+pub use pager::{PagerEventArgs, PagingInformation, RadzenPager};
+pub use pager_position::PagerPosition;
 pub use password::RadzenPassword;
 pub use renderer::ClassList;
 pub use select_bar::{RadzenSelectBar, RadzenSelectBarItem};

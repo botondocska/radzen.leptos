@@ -13,6 +13,12 @@ And Leptos is here: https://github.com/leptos-rs/leptos
 - if the component has dependencies not implemented, we shouldnt start implementing given component at all - we have to map recursively what components use what - then start with the one that only has already implemented dependencies, or no dependencies at all.
     - We have validate every component implemented, based on the c# version: no features can be missing at the end:  
         - We need to create a list of all features (and I mean everything from accessibility, css classes, properties, functionalities - if there is more I should put it here) that exist in the original component: compare them one by one wheter they exist in the rust version or not.
+        - Making notes on what feauters are different from just "translating the code":
+            - The original radzen library has a js library as well: I was not planning on adding that, instead use webassembly. 
+            - Some built in Blazor functionalities, that have to be solved in a different matter - these are dangerous ones, so I have to approach it with caution
+            - C# "perks" - usually inheritance and interfaces can be challenging - Traits only exist for structs, and Leptos uses functions - (macros?) 
+            - There could be some I haven't came accross yet. These should be noted going forward.
+
 
 ## Only after implementing every component in the library:
 - Optimize, to make ease of use, and the library itself cleaner. - this includes simplifying structures, reconsidering logics, finding other leptos ui libraries and looking at their way of using the leptos features, considering the differences between our, and their components.

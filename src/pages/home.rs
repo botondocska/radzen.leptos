@@ -1,13 +1,13 @@
-use chrono::NaiveDate;
 use leptos::prelude::*;
+use chrono::NaiveDate;
 use std::collections::HashMap;
 
 use crate::components::{
-    AlertStyle, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, Orientation, RadzenAlert,
-    RadzenBadge, RadzenButton, RadzenCard, RadzenCheckBox, RadzenDatePicker, RadzenDropDown,
-    RadzenIcon, RadzenLabel, RadzenLink, RadzenNumeric, RadzenPassword, RadzenSelectBar,
-    RadzenSelectBarItem, RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox, Shade, TextAlign,
-    TextStyle, Variant, dropdown::DropDownItem,
+    AlertStyle, BadgeStyle, ButtonSize, ButtonStyle, ComponentProps, Orientation,
+    RadzenAlert, RadzenBadge, RadzenButton, RadzenCard, RadzenCheckBox,
+     RadzenIcon, RadzenLabel,RadzenLink, RadzenNumeric, RadzenPassword,
+    RadzenSelectBar, RadzenSelectBarItem, RadzenStack, RadzenText, RadzenTextArea, RadzenTextBox,
+    Shade, TextAlign, TextStyle, Variant,
 };
 
 /// Default Home Page
@@ -15,14 +15,14 @@ use crate::components::{
 pub fn Home() -> impl IntoView {
     // ── Timed-alert demo state ────────────────────────────────────────────────
     let show_success = RwSignal::new(false);
-    let show_danger = RwSignal::new(false);
-    let show_info = RwSignal::new(false);
+    let show_danger  = RwSignal::new(false);
+    let show_info    = RwSignal::new(false);
 
     let description = RwSignal::new(String::new());
     let live_search = RwSignal::new(String::new());
-    let username = RwSignal::new(String::new());
-    let notes = RwSignal::new(String::new());
-    let password = RwSignal::new(String::new());
+    let username    = RwSignal::new(String::new());
+    let notes       = RwSignal::new(String::new());
+    let password    = RwSignal::new(String::new());
 
     fn trigger(signal: RwSignal<bool>, ms: u32) {
         signal.set(true);
@@ -30,34 +30,34 @@ pub fn Home() -> impl IntoView {
     }
 
     // ── CheckBox signals ──────────────────────────────────────────────────────
-    let chk_single = RwSignal::new(Some(false));
-    let chk_tri = RwSignal::new(None::<bool>);
+    let chk_single   = RwSignal::new(Some(false));
+    let chk_tri      = RwSignal::new(None::<bool>);
     let chk_disabled = RwSignal::new(Some(true));
     let chk_readonly = RwSignal::new(Some(true));
 
     // ── DatePicker signals ────────────────────────────────────────────────────
-    let date_basic = RwSignal::new(None::<NaiveDate>);
-    let date_bound = RwSignal::new(Some(NaiveDate::from_ymd_opt(2025, 6, 15).unwrap()));
-    let date_inline = RwSignal::new(None::<NaiveDate>);
+    let date_basic       = RwSignal::new(None::<NaiveDate>);
+    let date_bound       = RwSignal::new(Some(NaiveDate::from_ymd_opt(2025, 6, 15).unwrap()));
+    let date_inline      = RwSignal::new(None::<NaiveDate>);
     let date_range_start = RwSignal::new(None::<NaiveDate>);
-    let date_range_end = RwSignal::new(None::<NaiveDate>);
+    let date_range_end   = RwSignal::new(None::<NaiveDate>);
 
     // ── Numeric signals ───────────────────────────────────────────────────────
-    let num_basic = RwSignal::new(None::<f64>);
-    let num_bound = RwSignal::new(Some(42.0_f64));
-    let num_clamped = RwSignal::new(Some(5.0_f64));
-    let num_decimal = RwSignal::new(Some(3.14_f64));
+    let num_basic    = RwSignal::new(None::<f64>);
+    let num_bound    = RwSignal::new(Some(42.0_f64));
+    let num_clamped  = RwSignal::new(Some(5.0_f64));
+    let num_decimal  = RwSignal::new(Some(3.14_f64));
     let num_currency = RwSignal::new(Some(1999.99_f64));
 
     // ── SelectBar signals ─────────────────────────────────────────────────────
-    let sb_view = RwSignal::new("list".to_string());
-    let sb_multi = RwSignal::new(vec!["bold".to_string()]);
+    let sb_view     = RwSignal::new("list".to_string());
+    let sb_multi    = RwSignal::new(vec!["bold".to_string()]);
     let sb_operator = RwSignal::new("And".to_string());
 
     // ── DropDown signals ──────────────────────────────────────────────────────
-    let dd_single = RwSignal::new(String::new());
+    let dd_single   = RwSignal::new(String::new());
     let dd_prefilled = RwSignal::new("2".to_string());
-    let dd_multi = RwSignal::new(Vec::<String>::new());
+    let dd_multi    = RwSignal::new(Vec::<String>::new());
     let dd_filtered = RwSignal::new(String::new());
 
     view! {
@@ -369,66 +369,66 @@ pub fn Home() -> impl IntoView {
         // ════════════════════════════════════════════════════════════════════════
         // DatePicker
         // ════════════════════════════════════════════════════════════════════════
-
+        /*
         <h2 style="margin-top: 2rem;">"DatePicker — Basic"</h2>
         <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-            "Click the calendar icon to open the popup."
+        "Click the calendar icon to open the popup."
         </p>
         <div style="max-width: 280px;">
-            <RadzenDatePicker value=date_basic placeholder=Some("Pick a date".to_string()) />
+        <RadzenDatePicker value=date_basic placeholder=Some("Pick a date".to_string()) />
         </div>
         <RadzenText text_style=TextStyle::Body2>
-            {move || date_basic.get()
-                .map(|d| format!("Selected: {}", d))
-                .unwrap_or_else(|| "No date selected".to_string())}
+        {move || date_basic.get()
+        .map(|d| format!("Selected: {}", d))
+        .unwrap_or_else(|| "No date selected".to_string())}
         </RadzenText>
-
+        
         <h2 style="margin-top: 2rem;">"DatePicker — Pre-filled Value"</h2>
         <div style="max-width: 280px;">
-            <RadzenDatePicker value=date_bound />
+        <RadzenDatePicker value=date_bound />
         </div>
         <RadzenText text_style=TextStyle::Body2>
-            {move || date_bound.get().map(|d| format!("Value: {}", d)).unwrap_or_default()}
+        {move || date_bound.get().map(|d| format!("Value: {}", d)).unwrap_or_default()}
         </RadzenText>
-
+        
         <h2 style="margin-top: 2rem;">"DatePicker — Min / Max Clamping"</h2>
         <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-            "Only dates in 2025 are selectable."
+        "Only dates in 2025 are selectable."
         </p>
         <div style="max-width: 280px;">
-            <RadzenDatePicker
-                value=RwSignal::new(None::<NaiveDate>)
-                min=Some(NaiveDate::from_ymd_opt(2025, 1, 1).unwrap())
-                max=Some(NaiveDate::from_ymd_opt(2025, 12, 31).unwrap())
-                placeholder=Some("2025 only".to_string())
-            />
+        <RadzenDatePicker
+        value=RwSignal::new(None::<NaiveDate>)
+        min=Some(NaiveDate::from_ymd_opt(2025, 1, 1).unwrap())
+        max=Some(NaiveDate::from_ymd_opt(2025, 12, 31).unwrap())
+        placeholder=Some("2025 only".to_string())
+        />
         </div>
-
+        
         <h2 style="margin-top: 2rem;">"DatePicker — Inline (always open)"</h2>
         <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-            "No trigger button — calendar is always visible."
+        "No trigger button — calendar is always visible."
         </p>
         <div style="display: inline-block;">
-            <RadzenDatePicker value=date_inline inline=true />
+        <RadzenDatePicker value=date_inline inline=true />
         </div>
         <RadzenText text_style=TextStyle::Body2>
-            {move || date_inline.get()
-                .map(|d| format!("Selected: {}", d))
-                .unwrap_or_else(|| "None".to_string())}
+        {move || date_inline.get()
+        .map(|d| format!("Selected: {}", d))
+        .unwrap_or_else(|| "None".to_string())}
         </RadzenText>
-
+        
         <h2 style="margin-top: 2rem;">"DatePicker — Icon Only (no text input)"</h2>
         <div style="max-width: 60px;">
-            <RadzenDatePicker
-                value=RwSignal::new(None::<NaiveDate>)
-                show_input=false
-            />
+        <RadzenDatePicker
+        value=RwSignal::new(None::<NaiveDate>)
+        show_input=false
+        />
         </div>
-
+        
         <h2 style="margin-top: 2rem;">"DatePicker — Disabled"</h2>
         <div style="max-width: 280px;">
-            <RadzenDatePicker
-                value=RwSignal::new(Some(NaiveDate::from_ymd_opt(2025, 3, 14).unwrap()))
+        <RadzenDatePicker
+        value=RwSignal::new(Some(NaiveDate::from_ymd_opt(2025, 3, 14).unwrap()))
                 disabled=true
             />
         </div>
@@ -464,7 +464,8 @@ pub fn Home() -> impl IntoView {
                 </RadzenText>
             </div>
         </RadzenCard>
-
+        */
+        
         // ════════════════════════════════════════════════════════════════════════
         // Numeric
         // ════════════════════════════════════════════════════════════════════════
@@ -688,96 +689,96 @@ pub fn Home() -> impl IntoView {
         // ════════════════════════════════════════════════════════════════════════
         // DropDown
         // ════════════════════════════════════════════════════════════════════════
-
+        /*
         <h2 style="margin-top: 2rem;">"DropDown — Basic"</h2>
         <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-            "Click to open; click an item to select and close."
+        "Click to open; click an item to select and close."
         </p>
         <div style="max-width: 280px;">
-            <RadzenDropDown
-                value=dd_single
-                data=vec![
-                    DropDownItem::new("1", "Orders"),
-                    DropDownItem::new("2", "Employees"),
-                    DropDownItem::new("3", "Products"),
-                    DropDownItem::new("4", "Customers"),
-                ]
-                placeholder=Some("Select category…".to_string())
+        <RadzenDropDown
+        value=dd_single
+        data=vec![
+            DropDownItem::new("1", "Orders"),
+            DropDownItem::new("2", "Employees"),
+            DropDownItem::new("3", "Products"),
+            DropDownItem::new("4", "Customers"),
+            ]
+            placeholder=Some("Select category…".to_string())
             />
-        </div>
-        <RadzenText text_style=TextStyle::Body2>
+            </div>
+            <RadzenText text_style=TextStyle::Body2>
             {move || {
                 let v = dd_single.get();
                 if v.is_empty() { "Nothing selected".to_string() }
                 else { format!("Selected id: {}", v) }
             }}
-        </RadzenText>
-
+            </RadzenText>
+            
         <h2 style="margin-top: 2rem;">"DropDown — Pre-selected Value"</h2>
         <div style="max-width: 280px;">
             <RadzenDropDown
-                value=dd_prefilled
-                data=vec![
-                    DropDownItem::new("1", "January"),
-                    DropDownItem::new("2", "February"),
-                    DropDownItem::new("3", "March"),
-                    DropDownItem::new("4", "April"),
+            value=dd_prefilled
+            data=vec![
+                DropDownItem::new("1", "January"),
+                DropDownItem::new("2", "February"),
+                DropDownItem::new("3", "March"),
+                DropDownItem::new("4", "April"),
                 ]
-            />
-        </div>
-        <RadzenText text_style=TextStyle::Body2>
+                />
+                </div>
+                <RadzenText text_style=TextStyle::Body2>
             {move || format!("Month id: {}", dd_prefilled.get())}
-        </RadzenText>
-
-        <h2 style="margin-top: 2rem;">"DropDown — With Search Filtering"</h2>
-        <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+            </RadzenText>
+            
+            <h2 style="margin-top: 2rem;">"DropDown — With Search Filtering"</h2>
+            <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
             "Type in the search box inside the panel to filter the list."
-        </p>
-        <div style="max-width: 280px;">
+            </p>
+            <div style="max-width: 280px;">
             <RadzenDropDown
-                value=dd_filtered
-                allow_filtering=true
-                filter_placeholder="Search country…".to_string()
-                placeholder=Some("Country…".to_string())
-                data=vec![
-                    DropDownItem::new("at", "Austria"),
-                    DropDownItem::new("be", "Belgium"),
-                    DropDownItem::new("hr", "Croatia"),
-                    DropDownItem::new("cz", "Czech Republic"),
-                    DropDownItem::new("dk", "Denmark"),
-                    DropDownItem::new("fi", "Finland"),
-                    DropDownItem::new("fr", "France"),
-                    DropDownItem::new("de", "Germany"),
-                    DropDownItem::new("gr", "Greece"),
-                    DropDownItem::new("hu", "Hungary"),
-                    DropDownItem::new("ie", "Ireland"),
-                    DropDownItem::new("it", "Italy"),
-                    DropDownItem::new("nl", "Netherlands"),
-                    DropDownItem::new("pl", "Poland"),
-                    DropDownItem::new("pt", "Portugal"),
-                    DropDownItem::new("ro", "Romania"),
-                    DropDownItem::new("es", "Spain"),
-                    DropDownItem::new("se", "Sweden"),
+            value=dd_filtered
+            allow_filtering=true
+            filter_placeholder="Search country…".to_string()
+            placeholder=Some("Country…".to_string())
+            data=vec![
+                DropDownItem::new("at", "Austria"),
+                DropDownItem::new("be", "Belgium"),
+                DropDownItem::new("hr", "Croatia"),
+                DropDownItem::new("cz", "Czech Republic"),
+                DropDownItem::new("dk", "Denmark"),
+                DropDownItem::new("fi", "Finland"),
+                DropDownItem::new("fr", "France"),
+                DropDownItem::new("de", "Germany"),
+                DropDownItem::new("gr", "Greece"),
+                DropDownItem::new("hu", "Hungary"),
+                DropDownItem::new("ie", "Ireland"),
+                DropDownItem::new("it", "Italy"),
+                DropDownItem::new("nl", "Netherlands"),
+                DropDownItem::new("pl", "Poland"),
+                DropDownItem::new("pt", "Portugal"),
+                DropDownItem::new("ro", "Romania"),
+                DropDownItem::new("es", "Spain"),
+                DropDownItem::new("se", "Sweden"),
                 ]
-            />
-        </div>
-        <RadzenText text_style=TextStyle::Body2>
-            {move || {
-                let v = dd_filtered.get();
-                if v.is_empty() { "None".to_string() } else { format!("Code: {}", v) }
-            }}
-        </RadzenText>
-
-        <h2 style="margin-top: 2rem;">"DropDown — Multiple Selection"</h2>
-        <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
-            "Each item toggles independently; a checkbox indicates selection state."
-        </p>
+                />
+                </div>
+                <RadzenText text_style=TextStyle::Body2>
+                {move || {
+                    let v = dd_filtered.get();
+                    if v.is_empty() { "None".to_string() } else { format!("Code: {}", v) }
+                }}
+                </RadzenText>
+                
+                <h2 style="margin-top: 2rem;">"DropDown — Multiple Selection"</h2>
+                <p style="color: var(--rz-base-700); margin-bottom: 0.75rem; font-size: 0.875rem;">
+                "Each item toggles independently; a checkbox indicates selection state."
+                </p>
         <div style="max-width: 280px;">
-            <RadzenDropDown
-                value_multiple=dd_multi
-                multiple=true
-                allow_select_all=true
-                data=vec![
+        <RadzenDropDown
+        value_multiple=dd_multi
+        multiple=true
+        allow_select_all=true
+        data=vec![
                     DropDownItem::new("design",  "Design"),
                     DropDownItem::new("dev",     "Development"),
                     DropDownItem::new("qa",      "Quality Assurance"),
@@ -785,8 +786,8 @@ pub fn Home() -> impl IntoView {
                     DropDownItem::new("pm",      "Project Management"),
                 ]
                 placeholder=Some("Choose teams…".to_string())
-            />
-        </div>
+                />
+                </div>
         <RadzenText text_style=TextStyle::Body2>
             {move || {
                 let sel = dd_multi.get();
@@ -820,10 +821,10 @@ pub fn Home() -> impl IntoView {
                     DropDownItem::new("3", "Option C"),
                 ]
             />
-        </div>
-
-        <h2 style="margin-top: 2rem;">"DropDown — onChange Callback"</h2>
-        <div style="max-width: 280px;">
+            </div>
+            
+            <h2 style="margin-top: 2rem;">"DropDown — onChange Callback"</h2>
+            <div style="max-width: 280px;">
             <RadzenDropDown
                 value=RwSignal::new(String::new())
                 data=vec![
@@ -854,30 +855,30 @@ pub fn Home() -> impl IntoView {
                             DropDownItem::new("clothing",    "Clothing"),
                             DropDownItem::new("food",        "Food & Beverage"),
                             DropDownItem::new("books",       "Books"),
-                        ]
-                        placeholder=Some("All categories".to_string())
-                    />
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                    <RadzenLabel text=Some("Sort by".to_string()) component=Some("sort_filter".to_string()) />
+                            ]
+                            placeholder=Some("All categories".to_string())
+                            />
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <RadzenLabel text=Some("Sort by".to_string()) component=Some("sort_filter".to_string()) />
                     <RadzenDropDown
-                        value=RwSignal::new("relevance".to_string())
-                        name=Some("sort_filter".to_string())
-                        data=vec![
-                            DropDownItem::new("relevance",   "Relevance"),
-                            DropDownItem::new("price_asc",   "Price: Low to High"),
-                            DropDownItem::new("price_desc",  "Price: High to Low"),
-                            DropDownItem::new("newest",      "Newest First"),
+                    value=RwSignal::new("relevance".to_string())
+                    name=Some("sort_filter".to_string())
+                    data=vec![
+                        DropDownItem::new("relevance",   "Relevance"),
+                        DropDownItem::new("price_asc",   "Price: Low to High"),
+                        DropDownItem::new("price_desc",  "Price: High to Low"),
+                        DropDownItem::new("newest",      "Newest First"),
                         ]
-                    />
-                </div>
-                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                    <RadzenButton text="Reset".to_string()  button_style=ButtonStyle::Secondary variant=Variant::Flat />
-                    <RadzenButton text="Apply".to_string()  button_style=ButtonStyle::Primary />
-                </div>
+                        />
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <RadzenButton text="Reset".to_string()  button_style=ButtonStyle::Secondary variant=Variant::Flat />
+                        <RadzenButton text="Apply".to_string()  button_style=ButtonStyle::Primary />
+                        </div>
             </div>
         </RadzenCard>
-
+        */
         </div> // .container
         </ErrorBoundary>
     }

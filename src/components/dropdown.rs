@@ -5,7 +5,7 @@
 //! → `FormComponent<T>` → `RadzenComponent`
 //!
 //! In Rust all shared behaviour from those base classes lives in
-//! [`DropDownProps`] + [`use_drop_down_base`] (see `drop_down_base.rs`).
+//! [`DropDownProps`] + [`use_drop_down_base`] (see `dropdown_base.rs`).
 //! [`ComponentProps`] + [`use_radzen_base`] covers `RadzenComponent`.
 //!
 //! # CSS class (mirrors `GetComponentCssClass` in RadzenDropDown.razor.cs)
@@ -25,8 +25,7 @@
 //! ```html
 //! @if (Visible) {
 //! <div role="combobox" class="rz-dropdown [rz-clear] [rz-state-focused]"
-//!      @onclick @onclick:preventDefault @onclick:stopPropagation
-//!      onmousedown="Radzen.activeElement = null">
+//!      @onclick @onclick:preventDefault @onclick:stopPropagation>
 //!
 //!   <div class="rz-helper-hidden-accessible">
 //!     <input type="text" readonly name="@Name" value="@internalValue" />
@@ -42,10 +41,9 @@
 //!   </div>
 //!
 //!   <!-- @if (AllowClear && !ReadOnly && HasValue) — OUTSIDE the panel -->
-//!   <button class="notranslate rz-dropdown-clear-icon rzi rzi-times"
-//!           @onclick:stopPropagation @onclick="@ClearAll" />
+//!   <button class="notranslate rz-dropdown-clear-icon rzi rzi-times" … />
 //!
-//!   <div id="popup-{id}" class="rz-dropdown-panel" style="display:none">
+//!   <div class="rz-dropdown-panel" style="display:none">
 //!     <!-- @if (!Multiple && AllowFiltering) filter input -->
 //!     <!-- @if (Multiple && (AllowSelectAll || AllowFiltering)) header -->
 //!     <div class="rz-dropdown-items-wrapper" style="@PopupStyle">
@@ -63,29 +61,25 @@
 //! ```
 //!
 //! # Popup strategy
-//! Blazor uses JS `Radzen.togglePopup` / `Radzen.openPopup` to show/hide the
-//! panel (always in DOM, toggled via `display:none`). We use a reactive
-//! `open: RwSignal<bool>` and conditionally render the panel — the Leptos
-//! idiomatic equivalent. The focus/blur race is handled by:
-//! - `mousedown` on root with `prevent_default` (fires before `blur`, toggles popup)
-//! - `mousedown` + `prevent_default` on the panel (prevents blur on root)
-//! - `mousedown` + `stop_propagation` + `prevent_default` on items (prevents
-//!   both the root toggle and the blur)
+//! Blazor uses JS `Radzen.togglePopup` to show/hide the panel (always in DOM,
+//! toggled via `display:none`). We use a reactive `open: RwSignal<bool>` and
+//! conditionally render the panel — the Leptos idiomatic equivalent. The
+//! focus/blur race is handled via `mousedown` + `prevent_default` (fires before
+//! `blur`, prevents root focus loss).
 //!
 //! # Visibility
 //! Mirrors `@if (Visible)` — element fully omitted when invisible.
 
 use crate::components::{
     base_component::ComponentProps,
-    drop_down_base::{
+    dropdown_base::{
         build_drop_down_root_class, use_drop_down_base, DropDownItem, DropDownProps,
     },
 };
 use leptos::prelude::*;
 use std::sync::Arc;
 
-// Re-export DropDownItem so callers only need to import from this module.
-pub use crate::components::drop_down_base::DropDownItem as DropDownItemAlias;
+pub use crate::components::dropdown_base::DropDownItem as DropDownItemAlias;
 
 /// RadzenDropDown component.
 ///
@@ -135,13 +129,11 @@ pub fn RadzenDropDown(
     drop_down: DropDownProps,
 
     /// Base component props (id, style, visible, attrs, mouse events).
-    /// Contains the parameter surface of `RadzenComponent`.
     #[prop(default = Default::default())]
     base: ComponentProps,
 
     // ── RadzenDropDown-specific params ─────────────────────────────────────────
     /// Whether the component is read-only (displays but prevents changes).
-    /// Mirrors `ReadOnly` on `RadzenDropDown`.
     #[prop(default = false)]
     read_only: bool,
 
@@ -173,22 +165,11 @@ pub fn RadzenDropDown(
     let value_multiple = drop_down.value_multiple;
     let effective_tab = drop_down.effective_tab();
 
-    // StoredValues for data used in reactive closures (avoids Clone issues).
     let popup_style_sv = StoredValue::new(drop_down.popup_style.clone());
-    let filter_placeholder_sv = StoredValue::new(
-        drop_down
-            .data
-            .first()
-            .map(|_| String::new())
-            .unwrap_or_default(), // placeholder not on DropDownProps — use empty
-    );
-    // The filter_placeholder is not on DropDownProps (it's RadzenDropDown-specific).
-    // We keep it as a separate prop below — see the component signature note.
+    let filter_placeholder_sv = StoredValue::new(drop_down.filter_placeholder.clone());
     let selected_items_text_sv = StoredValue::new(drop_down.selected_items_text.clone());
-    let select_all_text_sv = StoredValue::new(String::new()); // see note below
     let footer_sv = StoredValue::new(footer_template);
 
-    // Static string captures
     let style = base.style.clone().unwrap_or_default();
     let handle_id = handle.id.clone();
     let caller_class = base
@@ -198,7 +179,6 @@ pub fn RadzenDropDown(
         .cloned()
         .unwrap_or_default();
 
-    // on_change / on_open / on_close stored so multiple closures can read them.
     let on_change_sv: StoredValue<Option<Arc<dyn Fn(String) + Send + Sync>>> =
         StoredValue::new(drop_down.on_change.clone());
     let on_open_sv: StoredValue<Option<Arc<dyn Fn() + Send + Sync>>> =
@@ -213,11 +193,13 @@ pub fn RadzenDropDown(
 
     // ── Root CSS class — reactive ─────────────────────────────────────────────
     // Mirrors GetComponentCssClass():
-    //   GetClassList("rz-dropdown")   → .AddDisabled(Disabled).Add("rz-state-empty", !HasValue)
-    //   .Add("rz-clear", AllowClear)
-    //   .Add("rz-dropdown-chips", Chips && selectedItems.Count > 0)
-    // then GetCssClass() appends caller class last.
-    // rz-state-focused is added when popup is open (isPopupOpen in Blazor).
+    //   GetClassList("rz-dropdown")
+    //       .AddDisabled(Disabled)
+    //       .Add("rz-state-empty", !HasValue)
+    //       .Add("rz-clear", AllowClear)
+    //       .Add("rz-dropdown-chips", Chips && selectedItems.Count > 0)
+    // + GetCssClass appends caller class last.
+    // rz-state-focused added when popup is open (mirrors isPopupOpen in Blazor).
     let caller_class_cl = caller_class.clone();
     let root_class = move || {
         let has_chips = chips && has_value.get() && multiple;
@@ -239,9 +221,7 @@ pub fn RadzenDropDown(
     };
 
     // ── Selected display label ────────────────────────────────────────────────
-    // Mirrors Blazor's cascade of display branches in the razor template.
-    // We compute the label text reactively; the reactive branch in `.child`
-    // picks the right span class.
+    // Mirrors Blazor's cascade of display branches.
     let selected_label = move || -> String {
         if multiple {
             let selected = value_multiple.map(|s| s.get()).unwrap_or_default();
@@ -253,7 +233,7 @@ pub fn RadzenDropDown(
                 // Mirrors: $"{selectedItems.Count} {SelectedItemsText}"
                 return format!("{} {}", count, selected_items_text_sv.get_value());
             }
-            // Mirrors: string.Join(Separator, selectedItems.Select(i => GetItemOrValueFromProperty(i, TextProperty)))
+            // Mirrors: string.Join(Separator, selectedItems.Select(label))
             let items = filtered_items.get();
             selected
                 .iter()
@@ -263,11 +243,6 @@ pub fn RadzenDropDown(
                 .join(", ")
         } else {
             let val = value.map(|s| s.get()).unwrap_or_default();
-            // Mirrors: GetItemOrValueFromProperty(selectedItem, TextProperty)
-            // Search the full unfiltered data (not just filtered_items) so the
-            // selected label is always visible even if the filter would hide it.
-            // We use filtered_items here since data_sv was moved into the Memo.
-            // In practice the filter is cleared when an item is selected.
             filtered_items
                 .get()
                 .into_iter()
@@ -289,7 +264,6 @@ pub fn RadzenDropDown(
     };
 
     // ── Hidden input value ────────────────────────────────────────────────────
-    // Mirrors: `value="@(internalValue != null ? internalValue : "")"`
     let hidden_value = move || -> String {
         if multiple {
             value_multiple.map(|s| s.get().join(",")).unwrap_or_default()
@@ -299,8 +273,6 @@ pub fn RadzenDropDown(
     };
 
     // ── select_item — mirrors OnSelectItem → SelectItem ───────────────────────
-    // Single: set value, close popup, fire on_change.
-    // Multiple: toggle item, keep panel open, fire on_change.
     let select_item = Arc::new(move |item_value: String| {
         if disabled || read_only {
             return;
@@ -335,13 +307,11 @@ pub fn RadzenDropDown(
     });
 
     // ── select_all — mirrors SelectAll() ─────────────────────────────────────
-    // Shared between the header checkbox and the "Select All" button.
     let select_all = Arc::new(move || {
         if disabled || read_only {
             return;
         }
         if let Some(multi_sig) = value_multiple {
-            // Use filtered_items so "select all" respects the active filter.
             let all_enabled: Vec<String> = filtered_items
                 .get()
                 .into_iter()
@@ -376,22 +346,17 @@ pub fn RadzenDropDown(
                     cb(String::new());
                 }
             }
-        } else {
-            if let Some(single_sig) = value {
-                single_sig.set(String::new());
-                if let Some(cb) = on_change_sv.get_value() {
-                    cb(String::new());
-                }
+        } else if let Some(single_sig) = value {
+            single_sig.set(String::new());
+            if let Some(cb) = on_change_sv.get_value() {
+                cb(String::new());
             }
         }
         filter_text.set(String::new());
     });
 
-    // ── Root toggle ───────────────────────────────────────────────────────────
-    // Mirrors Blazor: `@onclick="@(args => OpenPopup("ArrowDown", false, true))"
-    //                  @onclick:preventDefault @onclick:stopPropagation`
-    // We use `mousedown` (fires before `blur`) + `prevent_default` to prevent
-    // the root from losing focus and triggering blur-close before the toggle.
+    // ── Root toggle — mirrors Blazor's onclick + stopPropagation + preventDefault ──
+    // mousedown fires before blur, so we use it to toggle without losing focus.
     let toggle = move |ev: web_sys::MouseEvent| {
         ev.prevent_default();
         if disabled || read_only {
@@ -412,8 +377,7 @@ pub fn RadzenDropDown(
     };
 
     // ── Blur — safety-net close ───────────────────────────────────────────────
-    // Mirrors Blazor's JS popup which closes when focus moves outside.
-    // The 150ms delay lets item mousedown register before blur fires.
+    // 150 ms delay so item mousedown can register before blur fires.
     let on_blur = move |_ev: web_sys::FocusEvent| {
         gloo_timers::callback::Timeout::new(150, move || {
             open.set(false);
@@ -461,8 +425,6 @@ pub fn RadzenDropDown(
             })
             .attr("aria-disabled", if disabled { "true" } else { "false" })
             .attr("tabindex", effective_tab.to_string())
-            // mousedown on root — mirrors Blazor's onclick + stopPropagation + preventDefault.
-            // Using mousedown so it fires before blur.
             .on(leptos::ev::mousedown, toggle)
             .on(leptos::ev::blur, on_blur)
             .on(leptos::ev::keydown, on_keydown)
@@ -470,7 +432,6 @@ pub fn RadzenDropDown(
             .on(leptos::ev::mouseleave, move |ev| leave_cb(ev))
             .on(leptos::ev::contextmenu, move |ev| ctx_cb(ev))
             // ── Hidden accessible input ───────────────────────────────────────
-            // Mirrors: `<div class="rz-helper-hidden-accessible"><input … /></div>`
             .child(
                 leptos::html::div()
                     .attr("class", "rz-helper-hidden-accessible")
@@ -489,27 +450,19 @@ pub fn RadzenDropDown(
                     ),
             )
             // ── Selected value display ────────────────────────────────────────
-            // Mirrors Blazor's cascade of display branches:
-            //   selectedItem != null && !Multiple → label span
-            //   selectedItems.Count > 0            → joined-labels span (or count)
-            //   Placeholder set                    → placeholder span
-            //   else                               → &nbsp; span
             .child(move || {
                 let lbl = selected_label();
                 if !lbl.is_empty() {
-                    // Mirrors: <span class="rz-dropdown-label rz-inputtext">@label</span>
                     leptos::html::span()
                         .attr("class", "rz-dropdown-label rz-inputtext")
                         .child(lbl)
                         .into_any()
                 } else if let Some(ref ph) = drop_down.placeholder {
-                    // Mirrors: <span class="rz-dropdown-label rz-inputtext rz-placeholder">@Placeholder</span>
                     leptos::html::span()
                         .attr("class", "rz-dropdown-label rz-inputtext rz-placeholder")
                         .child(ph.clone())
                         .into_any()
                 } else {
-                    // Mirrors: <span class="rz-dropdown-label rz-inputtext">&nbsp;</span>
                     leptos::html::span()
                         .attr("class", "rz-dropdown-label rz-inputtext")
                         .child("\u{00a0}")
@@ -517,8 +470,6 @@ pub fn RadzenDropDown(
                 }
             })
             // ── Trigger chevron ───────────────────────────────────────────────
-            // Mirrors: `<div class="rz-dropdown-trigger rz-corner-right">`
-            // Blazor uses a <div>, NOT a <button>. The whole root div is clickable.
             .child(
                 leptos::html::div()
                     .attr("class", "rz-dropdown-trigger rz-corner-right")
@@ -530,9 +481,6 @@ pub fn RadzenDropDown(
                     ),
             )
             // ── Clear button — OUTSIDE the popup panel ────────────────────────
-            // Mirrors Blazor: `@if (AllowClear && !ReadOnly && (!Multiple && HasValue || …))`
-            // `<button class="notranslate rz-dropdown-clear-icon rzi rzi-times"
-            //          @onclick="@ClearAll" @onclick:stopPropagation="true" />`
             .child(move || -> Option<AnyView> {
                 if !allow_clear || read_only || !has_value.get() {
                     return None;
@@ -542,13 +490,8 @@ pub fn RadzenDropDown(
                     leptos::html::button()
                         .attr("type", "button")
                         .attr("tabindex", "-1")
-                        .attr(
-                            "class",
-                            "notranslate rz-dropdown-clear-icon rzi rzi-times",
-                        )
+                        .attr("class", "notranslate rz-dropdown-clear-icon rzi rzi-times")
                         .attr("aria-label", "Clear")
-                        // stop_propagation so click does NOT bubble to root toggle.
-                        // Mirrors Blazor's `@onclick:stopPropagation="true"`.
                         .on(leptos::ev::mousedown, move |ev: web_sys::MouseEvent| {
                             ev.stop_propagation();
                             ev.prevent_default();
@@ -558,14 +501,11 @@ pub fn RadzenDropDown(
                 )
             })
             // ── Popup panel ───────────────────────────────────────────────────
-            // Mirrors: `<div id="popup-{id}" class="rz-dropdown-panel" style="display:none">`
-            // Blazor keeps this always in the DOM; we conditionally render it.
             .child(move || -> Option<AnyView> {
                 if !open.get() {
                     return None;
                 }
 
-                // Panel class — mirrors razor: `@(Multiple ? "rz-multiselect-panel" : "rz-dropdown-panel")`
                 let panel_class = if multiple {
                     "rz-multiselect-panel"
                 } else {
@@ -575,55 +515,51 @@ pub fn RadzenDropDown(
                 let items = filtered_items.get();
 
                 // ── Single-mode filter header ──────────────────────────────────
-                // Mirrors: `@if (!Multiple && (AllowFiltering || HeaderTemplate != null))`
-                // `<div class="rz-dropdown-filter-container">…</div>`
-                let single_filter: Option<AnyView> =
-                    (!multiple && allow_filtering).then(|| {
-                        leptos::html::div()
-                            .attr("class", "rz-dropdown-filter-container")
-                            .child(
-                                leptos::html::input()
-                                    .attr("type", "text")
-                                    .attr("class", "rz-dropdown-filter rz-inputtext")
-                                    .attr("autocomplete", "off")
-                                    .attr("aria-autocomplete", "none")
-                                    .attr(
-                                        "placeholder",
-                                        filter_placeholder_sv.get_value(),
-                                    )
-                                    .prop("value", move || filter_text.get())
-                                    .on(leptos::ev::input, move |ev: web_sys::Event| {
-                                        use web_sys::wasm_bindgen::JsCast;
-                                        if let Some(input) = ev.target().and_then(|t| {
-                                            t.dyn_into::<web_sys::HtmlInputElement>().ok()
-                                        }) {
-                                            filter_text.set(input.value());
-                                        }
-                                    })
-                                    // Stop propagation so filter mousedown doesn't toggle the root.
-                                    .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
-                                        ev.stop_propagation();
-                                    })
-                                    .on(leptos::ev::click, |ev: web_sys::MouseEvent| {
-                                        ev.stop_propagation();
-                                    }),
-                            )
-                            .child(
-                                leptos::html::span().attr(
-                                    "class",
-                                    "notranslate rz-dropdown-filter-icon rzi rzi-search",
-                                ),
-                            )
-                            .into_any()
-                    });
+                let single_filter: Option<AnyView> = (!multiple && allow_filtering).then(|| {
+                    leptos::html::div()
+                        .attr("class", "rz-dropdown-filter-container")
+                        .child(
+                            leptos::html::input()
+                                .attr("type", "text")
+                                .attr("class", "rz-dropdown-filter rz-inputtext")
+                                .attr("autocomplete", "off")
+                                .attr("aria-autocomplete", "none")
+                                .attr("placeholder", filter_placeholder_sv.get_value())
+                                .prop("value", move || filter_text.get())
+                                .on(leptos::ev::input, move |ev: web_sys::Event| {
+                                    use web_sys::wasm_bindgen::JsCast;
+                                    if let Some(input) = ev
+                                        .target()
+                                        .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok())
+                                    {
+                                        filter_text.set(input.value());
+                                    }
+                                })
+                                .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
+                                    ev.stop_propagation();
+                                })
+                                .on(leptos::ev::click, |ev: web_sys::MouseEvent| {
+                                    ev.stop_propagation();
+                                }),
+                        )
+                        .child(
+                            leptos::html::span().attr(
+                                "class",
+                                "notranslate rz-dropdown-filter-icon rzi rzi-search",
+                            ),
+                        )
+                        .into_any()
+                });
 
                 // ── Multiple-mode header ───────────────────────────────────────
-                // Mirrors: `@if (Multiple && (AllowSelectAll || AllowFiltering || HeaderTemplate != null))`
-                // `<div class="rz-multiselect-header rz-helper-clearfix" @onclick:preventDefault>`
+                // Leptos HtmlElement builder types change with every .child() /
+                // .on() call — we cannot `let mut header = builder; header =
+                // header.child(...)` because that would change the type.
+                // Solution: collect conditional children as Vec<AnyView> and
+                // assemble them with a single .child(vec) call on the wrapper.
                 let multi_header: Option<AnyView> =
                     (multiple && (allow_select_all || allow_filtering)).then(|| {
-                        let all_enabled_count =
-                            items.iter().filter(|i| !i.disabled).count();
+                        let all_enabled_count = items.iter().filter(|i| !i.disabled).count();
                         let is_all = value_multiple
                             .map(|s| {
                                 let sel = s.get();
@@ -643,27 +579,17 @@ pub fn RadzenDropDown(
                         };
 
                         let sa1 = select_all.clone();
-                        let sa2 = select_all.clone();
-                        let sat = select_all_text_sv.get_value();
 
-                        let mut header = leptos::html::div()
-                            .attr("class", "rz-multiselect-header rz-helper-clearfix")
-                            // Mirrors Blazor's `@onclick:preventDefault` on the header.
-                            .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
-                                ev.prevent_default();
-                                ev.stop_propagation();
-                            });
+                        // Build conditional children as AnyView so the wrapper
+                        // div receives a single homogeneous Vec<AnyView>.
+                        let mut header_children: Vec<AnyView> = Vec::new();
 
                         if allow_select_all {
-                            // Checkbox — mirrors `<div class="rz-chkbox" @onclick="@SelectAll" …>`
-                            header = header.child(
+                            header_children.push(
                                 leptos::html::div()
                                     .attr("class", "rz-chkbox")
                                     .attr("role", "checkbox")
-                                    .attr(
-                                        "aria-checked",
-                                        if is_all { "true" } else { "false" },
-                                    )
+                                    .attr("aria-checked", if is_all { "true" } else { "false" })
                                     .on(leptos::ev::mousedown, {
                                         let sa = sa1.clone();
                                         move |ev: web_sys::MouseEvent| {
@@ -689,95 +615,57 @@ pub fn RadzenDropDown(
                                                 leptos::html::span()
                                                     .attr("class", chkbox_icon_class),
                                             ),
-                                    ),
+                                    )
+                                    .into_any(),
                             );
-
-                            // "Select All" button — mirrors:
-                            // `@if (AllowSelectAll && !AllowFiltering && !string.IsNullOrEmpty(SelectAllText) …)`
-                            if !allow_filtering && !sat.is_empty() {
-                                header = header.child(
-                                    leptos::html::button()
-                                        .attr("type", "button")
-                                        .attr("class", "rz-multiselect-selectall")
-                                        .attr("disabled", disabled)
-                                        .on(leptos::ev::mousedown, {
-                                            let sa = sa2.clone();
-                                            move |ev: web_sys::MouseEvent| {
-                                                ev.stop_propagation();
-                                                ev.prevent_default();
-                                                sa();
-                                            }
-                                        })
-                                        .child(sat),
-                                );
-                            }
                         }
 
-                        // Multi-mode filter — mirrors:
-                        // `@if (AllowFiltering) { <div class="rz-multiselect-filter-container">… }`
                         if allow_filtering {
-                            header = header.child(
+                            header_children.push(
                                 leptos::html::div()
                                     .attr("class", "rz-multiselect-filter-container")
                                     .child(
                                         leptos::html::input()
                                             .attr("type", "text")
                                             .attr("class", "rz-inputtext")
-                                            .attr(
-                                                "placeholder",
-                                                filter_placeholder_sv.get_value(),
-                                            )
+                                            .attr("placeholder", filter_placeholder_sv.get_value())
                                             .prop("value", move || filter_text.get())
-                                            .on(
-                                                leptos::ev::input,
-                                                move |ev: web_sys::Event| {
-                                                    use web_sys::wasm_bindgen::JsCast;
-                                                    if let Some(input) = ev
-                                                        .target()
-                                                        .and_then(|t| {
-                                                            t.dyn_into::<
-                                                                web_sys::HtmlInputElement,
-                                                            >()
-                                                            .ok()
-                                                        })
-                                                    {
-                                                        filter_text.set(input.value());
-                                                    }
-                                                },
-                                            )
-                                            .on(
-                                                leptos::ev::mousedown,
-                                                |ev: web_sys::MouseEvent| {
-                                                    ev.stop_propagation();
-                                                },
-                                            )
-                                            .on(
-                                                leptos::ev::click,
-                                                |ev: web_sys::MouseEvent| {
-                                                    ev.stop_propagation();
-                                                },
-                                            ),
+                                            .on(leptos::ev::input, move |ev: web_sys::Event| {
+                                                use web_sys::wasm_bindgen::JsCast;
+                                                if let Some(input) = ev.target().and_then(|t| {
+                                                    t.dyn_into::<web_sys::HtmlInputElement>().ok()
+                                                }) {
+                                                    filter_text.set(input.value());
+                                                }
+                                            })
+                                            .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
+                                                ev.stop_propagation();
+                                            })
+                                            .on(leptos::ev::click, |ev: web_sys::MouseEvent| {
+                                                ev.stop_propagation();
+                                            }),
                                     )
                                     .child(
                                         leptos::html::span().attr(
                                             "class",
                                             "notranslate rz-multiselect-filter-icon rzi rzi-search",
                                         ),
-                                    ),
+                                    )
+                                    .into_any(),
                             );
                         }
 
-                        header.into_any()
+                        leptos::html::div()
+                            .attr("class", "rz-multiselect-header rz-helper-clearfix")
+                            .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
+                                ev.prevent_default();
+                                ev.stop_propagation();
+                            })
+                            .child(header_children)
+                            .into_any()
                     });
 
                 // ── Item list ─────────────────────────────────────────────────
-                // Mirrors:
-                //   single:   wrapper="rz-dropdown-items-wrapper"
-                //             list="rz-dropdown-items rz-dropdown-list"
-                //             item="rz-dropdown-item [rz-state-highlight] [rz-state-disabled]"
-                //   multiple: wrapper="rz-multiselect-items-wrapper"
-                //             list="rz-multiselect-items rz-multiselect-list"
-                //             item="rz-multiselect-item [rz-state-highlight] [rz-state-disabled]"
                 let (items_wrapper_class, items_list_class, item_base_class) = if multiple {
                     (
                         "rz-multiselect-items-wrapper",
@@ -798,7 +686,7 @@ pub fn RadzenDropDown(
                         let item_selected = is_selected(&item.value);
                         let item_disabled = item.disabled;
 
-                        // Item CSS — mirrors Blazor's `GetItemCssClass()`:
+                        // Mirrors GetItemCssClass():
                         //   ClassList.Create("rz-dropdown-item")
                         //       .Add("rz-state-highlight", IsSelected(item))
                         //       .AddDisabled(IsDisabled(item))
@@ -810,7 +698,6 @@ pub fn RadzenDropDown(
                         let iv = item.value.clone();
                         let si = select_item.clone();
 
-                        // Checkbox for multiple mode — mirrors RadzenCheckBox inside each item.
                         let chk_child: Option<AnyView> = multiple.then(|| {
                             let chkbox_box_class = if item_selected {
                                 "notranslate rz-chkbox-box rz-state-active"
@@ -852,9 +739,8 @@ pub fn RadzenDropDown(
                                 "aria-selected",
                                 if item_selected { "true" } else { "false" },
                             )
-                            // CRITICAL: stop_propagation → does not bubble to root toggle.
-                            // prevent_default → root does not lose focus (no spurious blur).
-                            // Mirrors Blazor's JS popup focus management.
+                            // stop_propagation → does not bubble to root toggle.
+                            // prevent_default → root does not lose focus.
                             .on(leptos::ev::mousedown, move |ev: web_sys::MouseEvent| {
                                 ev.stop_propagation();
                                 ev.prevent_default();
@@ -863,14 +749,12 @@ pub fn RadzenDropDown(
                                 }
                             })
                             .child(chk_child)
-                            .child(
-                                leptos::html::span().child(item.label.clone()),
-                            )
+                            .child(leptos::html::span().child(item.label.clone()))
                             .into_any()
                     })
                     .collect();
 
-                // Footer — mirrors `@FooterTemplate`.
+                // ── Footer — mirrors @FooterTemplate ──────────────────────────
                 let footer: Option<AnyView> = footer_sv.get_value().map(|f| {
                     leptos::html::div()
                         .attr("class", "rz-dropdown-footer")
@@ -881,8 +765,7 @@ pub fn RadzenDropDown(
                 Some(
                     leptos::html::div()
                         .attr("class", panel_class)
-                        // prevent_default on panel mousedown: prevents root from losing focus.
-                        // Mirrors Blazor's JS popup keeping focus on the trigger element.
+                        // prevent_default on panel: keeps focus on root trigger.
                         .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
                             ev.prevent_default();
                         })
@@ -903,9 +786,9 @@ pub fn RadzenDropDown(
                                         .child(item_views),
                                 ),
                         )
-                        .child(footer),
+                        .child(footer)
+                        .into_any(),
                 )
-                .into_any()
             }),
     )
     .into_any()

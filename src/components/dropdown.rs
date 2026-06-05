@@ -25,27 +25,35 @@
 //! so it escapes the `overflow: hidden` root container. Without JS teleportation
 //! in Leptos, the panel must be rendered outside the overflow-clipping root.
 //!
-//! Solution: a thin outer wrapper `<div style="position:relative; display:inline-flex; width:100%">`
+//! Solution: a thin outer wrapper `<div style="position:relative; display:block; width:100%">`
 //! contains BOTH the Radzen root div (which has `overflow:hidden` from SCSS)
 //! AND the absolutely-positioned panel as a sibling. The panel is therefore
 //! not clipped by the root's overflow.
 //!
-//! # Blazor razor differences accounted for
-//! - Panel always in DOM with `display:none` in Blazor → conditionally rendered in Leptos
-//!   (same visible result, avoids the need for JS show/hide).
-//! - `Radzen.activeElement = null` on root `onmousedown` → not needed in Leptos
-//!   (we use `prevent_default` on item `mousedown` to keep focus on root).
-//! - Clear button is a **direct sibling** of the panel in Blazor's razor
-//!   (outside the panel div) → reproduced exactly in the Leptos wrapper.
+//! # Panel flip (above/below)
+//! Uses a `NodeRef` on the wrapper + a `RwSignal<bool> flip_up` that is set in
+//! an `Effect` by measuring `getBoundingClientRect()` vs `window.innerHeight`.
+//! When there is not enough space below the input, the panel opens upward
+//! (mirrors Blazor's JS `Radzen.openPopup` smart-position logic).
+//!
+//! # Clear button placement
+//! Mirrors Blazor razor exactly: the clear button is a direct child of the root
+//! `<div>` (after the trigger chevron), NOT inside the panel div. For multi-select
+//! AllowClear the clear button appears inside the header.
+//!
+//! # Search/filter — stop propagation
+//! Clicking the filter `<input>` must NOT bubble to the root's click handler
+//! (which would toggle the popup closed). Blazor uses
+//! `onclick="Radzen.preventDefaultAndStopPropagation(event)"` on the filter input.
+//! We mirror this by calling `ev.stop_propagation()` on the input's `click` and
+//! `mousedown` handlers.
 //!
 //! # Visibility
 //! Mirrors `@if (Visible)` — element fully omitted when invisible.
 
 use crate::components::{
     base_component::ComponentProps,
-    dropdown_base::{
-        build_drop_down_root_class, use_drop_down_base, DropDownItem, DropDownProps,
-    },
+    dropdown_base::{DropDownItem, DropDownProps, build_drop_down_root_class, use_drop_down_base},
 };
 use leptos::prelude::*;
 use std::sync::Arc;
@@ -143,6 +151,36 @@ pub fn RadzenDropDown(
     let filtered_items = handle.filtered_items;
     let has_value = handle.has_value;
 
+    // ── Flip-up detection ─────────────────────────────────────────────────────
+    // When the panel opens, measure available space below the wrapper.
+    // If less than 220px remain before the viewport bottom, open upward.
+    let flip_up = RwSignal::new(false);
+    let wrapper_ref = NodeRef::<leptos::html::Div>::new();
+
+    Effect::new(move |_| {
+        if !open.get() {
+            return;
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(el) = wrapper_ref.get() {
+                use web_sys::wasm_bindgen::JsCast;
+                if let Some(el) = el.dyn_ref::<web_sys::Element>() {
+                    let rect = el.get_bounding_client_rect();
+                    if let Some(win) = web_sys::window() {
+                        let inner_h = win
+                            .inner_height()
+                            .ok()
+                            .and_then(|v| v.as_f64())
+                            .unwrap_or(600.0);
+                        let space_below = inner_h - rect.bottom();
+                        flip_up.set(space_below < 220.0);
+                    }
+                }
+            }
+        }
+    });
+
     // ── Root CSS class — reactive ─────────────────────────────────────────────
     let caller_class_cl = caller_class.clone();
     let root_class = move || {
@@ -175,6 +213,8 @@ pub fn RadzenDropDown(
             if count > max_selected_labels {
                 return format!("{} {}", count, selected_items_text_sv.get_value());
             }
+            // Use the full unfiltered data to resolve labels — filtering should not
+            // affect the display of already-selected items.
             let items = filtered_items.get();
             selected
                 .iter()
@@ -207,7 +247,9 @@ pub fn RadzenDropDown(
     // ── Hidden input value ────────────────────────────────────────────────────
     let hidden_value = move || -> String {
         if multiple {
-            value_multiple.map(|s| s.get().join(",")).unwrap_or_default()
+            value_multiple
+                .map(|s| s.get().join(","))
+                .unwrap_or_default()
         } else {
             value.map(|s| s.get()).unwrap_or_default()
         }
@@ -295,11 +337,12 @@ pub fn RadzenDropDown(
         }
         filter_text.set(String::new());
     });
+    let clear_all_for_panel = clear_all.clone();
+    let clear_all_for_root = clear_all.clone();
 
     // ── Root toggle ───────────────────────────────────────────────────────────
     // Mirrors Blazor's @onclick="OpenPopup("ArrowDown", false, true)"
-    // We use onclick (not mousedown) on the root — same as Blazor.
-    // Item mousedown calls prevent_default to keep focus on the root.
+    // Use onclick (same as Blazor) on the root div — NOT mousedown.
     let toggle = move |ev: web_sys::MouseEvent| {
         ev.prevent_default();
         ev.stop_propagation();
@@ -322,35 +365,51 @@ pub fn RadzenDropDown(
 
     // ── Blur — safety-net close ───────────────────────────────────────────────
     // 150ms delay so item mousedown can fire before the blur closes the panel.
-    let on_blur = move |_ev: web_sys::FocusEvent| {
-        gloo_timers::callback::Timeout::new(150, move || {
-            open.set(false);
-            filter_text.set(String::new());
-        })
-        .forget();
+    // The delay also allows the filter input click to register without triggering
+    // a close — the filter input calls stop_propagation so the blur fires on
+    // the root only when focus truly leaves the component.
+    let wrapper_ref = NodeRef::<leptos::html::Div>::new();
+
+    let on_blur = move |ev: web_sys::FocusEvent| {
+        use web_sys::wasm_bindgen::JsCast;
+
+        let focus_stayed_inside = ev
+            .related_target()
+            .and_then(|t| t.dyn_into::<web_sys::Node>().ok())
+            .and_then(|target| {
+                wrapper_ref
+                    .get()
+                    .map(|wrapper| wrapper.contains(Some(&target)))
+            })
+            .unwrap_or(false);
+
+        if focus_stayed_inside {
+            return;
+        }
+
+        open.set(false);
+        filter_text.set(String::new());
     };
 
     // ── Keyboard — mirrors OnKeyPress ─────────────────────────────────────────
-    let on_keydown = move |ev: web_sys::KeyboardEvent| {
-        match ev.key().as_str() {
-            "Escape" | "Tab" => {
-                open.set(false);
-                filter_text.set(String::new());
-                if let Some(cb) = on_close_sv.get_value() {
+    let on_keydown = move |ev: web_sys::KeyboardEvent| match ev.key().as_str() {
+        "Escape" | "Tab" => {
+            open.set(false);
+            filter_text.set(String::new());
+            if let Some(cb) = on_close_sv.get_value() {
+                cb();
+            }
+        }
+        "Enter" | " " | "ArrowDown" => {
+            ev.prevent_default();
+            if !open.get_untracked() {
+                if let Some(cb) = on_open_sv.get_value() {
                     cb();
                 }
+                open.set(true);
             }
-            "Enter" | " " | "ArrowDown" => {
-                ev.prevent_default();
-                if !open.get_untracked() {
-                    if let Some(cb) = on_open_sv.get_value() {
-                        cb();
-                    }
-                    open.set(true);
-                }
-            }
-            _ => {}
         }
+        _ => {}
     };
 
     // ── Base mouse events ─────────────────────────────────────────────────────
@@ -359,8 +418,10 @@ pub fn RadzenDropDown(
     let ctx_cb = handle.on_context_menu.clone();
 
     // ── Panel content builder ─────────────────────────────────────────────────
-    // Extracted as a closure so the panel can be rendered as a sibling of the
-    // root div (outside its overflow:hidden) — see module-level doc comment.
+    // The panel is a sibling of the root div inside the wrapper. This places it
+    // outside the root's overflow:hidden so it is not clipped.
+    // `flip_up` controls whether the panel appears above or below the input.
+    let build_panel_clear = clear_all_for_panel.clone();
     let build_panel = move || -> Option<AnyView> {
         if !open.get() {
             return None;
@@ -372,9 +433,20 @@ pub fn RadzenDropDown(
             "rz-dropdown-panel"
         };
 
+        // Panel position: below by default, above when near viewport bottom.
+        // `top: 100%` = just below the wrapper; `bottom: 100%` = just above.
+        let panel_pos_style = if flip_up.get() {
+            "position: absolute; bottom: 100%; left: 0; right: 0; width: 100%; z-index: 2000; box-sizing: border-box;"
+        } else {
+            "position: absolute; top: 100%; left: 0; right: 0; width: 100%; z-index: 2000; box-sizing: border-box;"
+        };
+
         let items = filtered_items.get();
 
         // ── Single-mode filter ────────────────────────────────────────────────
+        // Mirrors Blazor: @if(!Multiple && (AllowFiltering || HeaderTemplate != null))
+        // The filter input uses stop_propagation on click/mousedown so that
+        // clicking inside it does NOT bubble to the wrapper and re-trigger toggle.
         let single_filter: Option<AnyView> = (!multiple && allow_filtering).then(|| {
             leptos::html::div()
                 .attr("class", "rz-dropdown-filter-container")
@@ -395,25 +467,27 @@ pub fn RadzenDropDown(
                                 filter_text.set(input.value());
                             }
                         })
-                        .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
+                        // Critical: stop propagation so the root's toggle handler
+                        // does not receive this click and close the panel.
+                        // Mirrors Blazor: onclick="Radzen.preventDefaultAndStopPropagation(event)"
+                        .on(leptos::ev::click, |ev: web_sys::MouseEvent| {
                             ev.stop_propagation();
                         })
-                        .on(leptos::ev::click, |ev: web_sys::MouseEvent| {
+                        .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
                             ev.stop_propagation();
                         }),
                 )
-                .child(
-                    leptos::html::span().attr(
-                        "class",
-                        "notranslate rz-dropdown-filter-icon rzi rzi-search",
-                    ),
-                )
+                .child(leptos::html::span().attr(
+                    "class",
+                    "notranslate rz-dropdown-filter-icon rzi rzi-search",
+                ))
                 .into_any()
         });
 
         // ── Multiple-mode header ──────────────────────────────────────────────
-        let multi_header: Option<AnyView> =
-            (multiple && (allow_select_all || allow_filtering)).then(|| {
+        // Mirrors Blazor: @if(Multiple && (AllowSelectAll || AllowFiltering || HeaderTemplate))
+        let multi_header: Option<AnyView> = (multiple && (allow_select_all || allow_filtering))
+            .then(|| {
                 let all_enabled_count = items.iter().filter(|i| !i.disabled).count();
                 let is_all = value_multiple
                     .map(|s| {
@@ -463,9 +537,7 @@ pub fn RadzenDropDown(
                             .child(
                                 leptos::html::div()
                                     .attr("class", chkbox_box_class)
-                                    .child(
-                                        leptos::html::span().attr("class", chkbox_icon_class),
-                                    ),
+                                    .child(leptos::html::span().attr("class", chkbox_icon_class)),
                             )
                             .into_any(),
                     );
@@ -489,21 +561,48 @@ pub fn RadzenDropDown(
                                             filter_text.set(input.value());
                                         }
                                     })
-                                    .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
+                                    // Mirrors: onclick="Radzen.preventDefaultAndStopPropagation(event)"
+                                    .on(leptos::ev::click, |ev: web_sys::MouseEvent| {
                                         ev.stop_propagation();
                                     })
-                                    .on(leptos::ev::click, |ev: web_sys::MouseEvent| {
+                                    .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
                                         ev.stop_propagation();
                                     }),
                             )
-                            .child(
-                                leptos::html::span().attr(
-                                    "class",
-                                    "notranslate rz-multiselect-filter-icon rzi rzi-search",
-                                ),
-                            )
+                            .child(leptos::html::span().attr(
+                                "class",
+                                "notranslate rz-multiselect-filter-icon rzi rzi-search",
+                            ))
                             .into_any(),
                     );
+                }
+
+                // Multi-mode AllowClear — clear button inside the header.
+                // Mirrors Blazor:
+                //   @if (AllowClear && !ReadOnly && (Multiple && selectedItems.Count > 0))
+                //   { <button class="rz-multiselect-close" … /> }
+                if allow_clear && !read_only {
+                    let ca = build_panel_clear.clone();
+                    let cur_has_value =
+                        value_multiple.map(|s| !s.get().is_empty()).unwrap_or(false);
+                    if cur_has_value {
+                        header_children.push(
+                            leptos::html::button()
+                                .attr("type", "button")
+                                .attr("tabindex", "-1")
+                                .attr("class", "rz-multiselect-close")
+                                .attr("aria-label", "Clear")
+                                .on(leptos::ev::mousedown, move |ev: web_sys::MouseEvent| {
+                                    ev.stop_propagation();
+                                    ev.prevent_default();
+                                    ca();
+                                })
+                                .child(
+                                    leptos::html::span().attr("class", "notranslate rzi rzi-times"),
+                                )
+                                .into_any(),
+                        );
+                    }
                 }
 
                 leptos::html::div()
@@ -572,9 +671,7 @@ pub fn RadzenDropDown(
                         .child(
                             leptos::html::div()
                                 .attr("class", chkbox_box_class)
-                                .child(
-                                    leptos::html::span().attr("class", chkbox_icon_class),
-                                ),
+                                .child(leptos::html::span().attr("class", chkbox_icon_class)),
                         )
                         .into_any()
                 });
@@ -582,7 +679,10 @@ pub fn RadzenDropDown(
                 leptos::html::li()
                     .attr("class", li_class)
                     .attr("role", "option")
-                    .attr("aria-selected", if item_selected { "true" } else { "false" })
+                    .attr(
+                        "aria-selected",
+                        if item_selected { "true" } else { "false" },
+                    )
                     // prevent_default keeps focus on root (no blur fires).
                     // stop_propagation prevents bubbling to the wrapper's mousedown.
                     .on(leptos::ev::mousedown, move |ev: web_sys::MouseEvent| {
@@ -609,13 +709,8 @@ pub fn RadzenDropDown(
         Some(
             leptos::html::div()
                 .attr("class", panel_class)
-                // Position the panel below the input field, matching its width
-                // and appearing above other elements (z-index from Blazor's JS)
-                .attr(
-                    "style",
-                    "position: absolute; top: 100%; left: 0; right: 0; width: 100%; z-index: 2000; box-sizing: border-box;",
-                )
-                // prevent_default on panel: keeps focus on root trigger.
+                .attr("style", panel_pos_style)
+                // prevent_default keeps focus on root trigger when clicking inside panel.
                 .on(leptos::ev::mousedown, |ev: web_sys::MouseEvent| {
                     ev.prevent_default();
                 })
@@ -642,28 +737,27 @@ pub fn RadzenDropDown(
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
-    // Structure (mirrors Blazor + solves the overflow:hidden clipping problem):
+    // Structure — mirrors Blazor's DOM while solving the overflow:hidden clipping:
     //
     //   <div class="rz-dropdown-wrapper">          ← position:relative, no overflow clipping
-    //     <div class="rz-dropdown …" …>            ← the actual Radzen root (overflow:hidden)
+    //     <div class="rz-dropdown …" …>            ← actual Radzen root (may have overflow:hidden)
     //       … label, trigger, hidden input …
+    //       <button class="rz-dropdown-clear-icon" />  ← inside root, after trigger (Blazor exact)
     //     </div>
-    //     <button class="rz-dropdown-clear-icon …" />   ← outside overflow:hidden root
-    //     <div class="rz-dropdown-panel …" />            ← outside overflow:hidden root
+    //     <div class="rz-dropdown-panel …" />       ← sibling of root, not clipped
     //   </div>
     //
-    // Blazor achieves the same by JS-teleporting the panel to document.body.
-    // We achieve it by making the panel a sibling of the root div inside the wrapper.
-    // The wrapper has `position:relative` so the absolutely-positioned panel
-    // anchors to it correctly.
+    // Clear button placement (mirrors Blazor razor exactly):
+    //   - Single mode: INSIDE the root div, as the last child, after the trigger chevron.
+    //     Blazor: `@if (AllowClear && …) { <button class="rz-dropdown-clear-icon …" /> }`
+    //     which is written directly inside the root `<div>`, after `rz-dropdown-trigger`.
+    //   - Multiple mode: inside the multiselect header (rendered inside the panel header).
     Some(
         leptos::html::div()
-            // Wrapper: provides the positioning context for the absolute panel
-            // display: block is better than inline-flex for containing absolute children
-            .attr(
-                "style",
-                "position: relative; display: block; width: 100%;",
-            )
+            .node_ref(wrapper_ref)
+            // Wrapper: positioning context for the absolute panel.
+            // display:block (not inline-flex) for proper width containment.
+            .attr("style", "position: relative; display: block; width: 100%;")
             // ── Radzen root div ───────────────────────────────────────────────
             .child(
                 leptos::html::div()
@@ -672,9 +766,12 @@ pub fn RadzenDropDown(
                     .attr("class", root_class)
                     .attr("role", "combobox")
                     .attr("aria-haspopup", "listbox")
-                    .attr("aria-expanded", move || {
-                        if open.get() { "true" } else { "false" }
-                    })
+                    .attr(
+                        "aria-expanded",
+                        move || {
+                            if open.get() { "true" } else { "false" }
+                        },
+                    )
                     .attr("aria-disabled", if disabled { "true" } else { "false" })
                     .attr("tabindex", effective_tab.to_string())
                     // Use onclick (same as Blazor) — not mousedown.
@@ -727,39 +824,41 @@ pub fn RadzenDropDown(
                     .child(
                         leptos::html::div()
                             .attr("class", "rz-dropdown-trigger rz-corner-right")
-                            .child(
-                                leptos::html::span().attr(
-                                    "class",
-                                    "notranslate rz-dropdown-trigger-icon rzi rzi-chevron-down",
-                                ),
-                            ),
-                    ),
+                            .child(leptos::html::span().attr(
+                                "class",
+                                "notranslate rz-dropdown-trigger-icon rzi rzi-chevron-down",
+                            )),
+                    )
+                    // ── Single-mode clear button ──────────────────────────────
+                    // Mirrors Blazor razor: placed INSIDE the root div, after the trigger,
+                    // as the last child. This is the correct position per the Blazor source:
+                    //   @if (AllowClear && !ReadOnly && (!Multiple && HasValue || …)) {
+                    //     <button class="notranslate rz-dropdown-clear-icon rzi rzi-times" … />
+                    //   }
+                    .child(move || -> Option<AnyView> {
+                        if multiple || !allow_clear || read_only || !has_value.get() {
+                            return None;
+                        }
+                        let ca = clear_all_for_root.clone();
+                        Some(
+                            leptos::html::button()
+                                .attr("type", "button")
+                                .attr("tabindex", "-1")
+                                .attr("class", "notranslate rz-dropdown-clear-icon rzi rzi-times")
+                                .attr("aria-label", "Clear")
+                                .on(leptos::ev::mousedown, move |ev: web_sys::MouseEvent| {
+                                    ev.stop_propagation();
+                                    ev.prevent_default();
+                                    ca();
+                                })
+                                .into_any(),
+                        )
+                    }),
             )
-            // ── Clear button — sibling of root, outside overflow:hidden ───────
-            // Mirrors Blazor razor: clear button is OUTSIDE the panel div,
-            // after the root div's closing tag.
-            .child(move || -> Option<AnyView> {
-                if !allow_clear || read_only || !has_value.get() {
-                    return None;
-                }
-                let ca = clear_all.clone();
-                Some(
-                    leptos::html::button()
-                        .attr("type", "button")
-                        .attr("tabindex", "-1")
-                        .attr("class", "notranslate rz-dropdown-clear-icon rzi rzi-times")
-                        .attr("aria-label", "Clear")
-                        .on(leptos::ev::mousedown, move |ev: web_sys::MouseEvent| {
-                            ev.stop_propagation();
-                            ev.prevent_default();
-                            ca();
-                        })
-                        .into_any(),
-                )
-            })
             // ── Panel — sibling of root, outside overflow:hidden ──────────────
-            // This is the critical fix: by being a sibling (not a child) of the
-            // overflow:hidden root div, the panel is not clipped.
+            // Rendered as a sibling (not a child) of the root div so that it is
+            // not clipped by the root's overflow:hidden. The wrapper's
+            // position:relative anchors the absolute panel correctly.
             .child(move || build_panel()),
     )
     .into_any()

@@ -29,8 +29,8 @@
 //! [`DropDownItem`]. This trades reflection flexibility for compile-time safety.
 
 use crate::components::{
-    base_component::{ComponentProps, MouseEvent, RadzenBaseHandle, use_radzen_base},
     ClassList,
+    base_component::{ComponentProps, MouseEvent, RadzenBaseHandle, use_radzen_base},
 };
 use leptos::prelude::*;
 use std::sync::Arc;
@@ -286,9 +286,7 @@ pub fn use_drop_down_base_flat(
     //   multiple: internalValue != null && collection.Any()
     let has_value = Memo::new(move |_| {
         if multiple {
-            value_multiple
-                .map(|s| !s.get().is_empty())
-                .unwrap_or(false)
+            value_multiple.map(|s| !s.get().is_empty()).unwrap_or(false)
         } else {
             value.map(|s| !s.get().is_empty()).unwrap_or(false)
         }

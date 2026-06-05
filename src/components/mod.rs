@@ -12,7 +12,7 @@ pub mod button_style;
 pub mod button_type;
 pub mod card;
 pub mod check_box;
-//pub mod date_picker;
+pub mod date_picker;
 pub mod dropdown;
 pub mod dropdown_base;
 pub mod flex_wrap;
@@ -54,12 +54,14 @@ pub use button_style::ButtonStyle;
 pub use button_type::ButtonType;
 pub use card::RadzenCard;
 pub use check_box::RadzenCheckBox;
-//pub use date_picker::RadzenDatePicker;
-pub use dropdown::{RadzenDropDown, DropDownItemAlias};
+pub use date_picker::RadzenDatePicker;
+pub use dropdown::RadzenDropDown;
+
 pub use dropdown_base::{
     DropDownItem, DropDownProps, DropdownBase, DropdownBaseOption, DropdownBaseProps,
     build_drop_down_root_class, use_drop_down_base, use_drop_down_base_flat,
-};pub use flex_wrap::FlexWrap;
+};
+pub use flex_wrap::FlexWrap;
 pub use icon::RadzenIcon;
 pub use icon_style::IconStyle;
 pub use image::{ImageClickFuture, ImageClickHandler, RadzenImage};

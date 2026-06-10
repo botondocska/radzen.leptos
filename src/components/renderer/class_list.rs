@@ -22,7 +22,7 @@
 //! to reproduce this ordering exactly.
 
 use crate::components::{
-    BadgeStyle, ButtonSize, ButtonStyle, IconStyle, Shade, TextAlign, TextStyle, Variant,
+    BadgeStyle, ButtonSize, ButtonStyle, IconStyle, Shade, TextAlign, TextStyle, Variant, HorizontalAlign
 };
 use std::collections::HashMap;
 
@@ -164,6 +164,16 @@ impl ClassList {
             BadgeStyle::Warning => "rz-badge-warning",
             BadgeStyle::Danger => "rz-badge-danger",
             BadgeStyle::Info => "rz-badge-info",
+        };
+        self.add_class(class)
+    }
+
+    pub fn add_horizontal_align(self, align: HorizontalAlign) -> Self {
+        let class = match align {
+            HorizontalAlign::Left    => "rz-text-align-left",
+            HorizontalAlign::Center  => "rz-text-align-center",
+            HorizontalAlign::Right   => "rz-text-align-right",
+            HorizontalAlign::Justify => "rz-text-align-justify",
         };
         self.add_class(class)
     }

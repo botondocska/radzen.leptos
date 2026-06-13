@@ -251,26 +251,11 @@ pub fn RadzenPager(
 
     // ── CSS class — mirrors GetComponentCssClass() ────────────────────────────
     // `rz-pager rz-unselectable-text rz-helper-clearfix [rz-density-compact] [align-class] [caller]`
-    let mut css_parts = vec!["rz-pager", "rz-unselectable-text", "rz-helper-clearfix"];
-    let density_class_str;
-    if density == Density::Compact {
-        density_class_str = "rz-density-compact";
-        css_parts.push(density_class_str);
-    }
-    if let Some(align_class) = ClassList::add_horizontal_align(horizontal_align) {
-        css_parts.push(align_class);
-    }
-    let caller_class = base
-        .attrs
-        .as_ref()
-        .and_then(|a| a.get("class"))
-        .cloned()
-        .unwrap_or_default();
-    let mut css_class = css_parts.join(" ");
-    if !caller_class.is_empty() {
-        css_class.push(' ');
-        css_class.push_str(&caller_class);
-    }
+    let css_class = ClassList::create("rz-pager rz-unselectable-text rz-helper-clearfix")
+    .add("rz-density-compact", density == Density::Compact)
+    .add_horizontal_align(horizontal_align)
+    .add_caller_class(base.attrs.as_ref().and_then(|a| a.get("class")).map(String::as_str))
+    .finish();
 
     let style = base.style.clone().unwrap_or_default();
     let handle_id = handle.id.clone();
